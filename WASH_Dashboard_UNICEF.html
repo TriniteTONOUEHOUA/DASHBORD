@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Dashboard WASH – UNICEF Bénin</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.css"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --navy:#374EA2;--blue:#00AEEF;--dblue:#1CABE2;
+  --green:#80BD41;--orange:#F26A21;--red:#E2231A;
+  --gray:#6D6E71;--light:#D9F0F9;--bg:#F0F7FC;
+  --sidebar:240px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:Arial,sans-serif;background:var(--bg);color:#2c3e50;display:flex;flex-direction:column;min-height:100vh;}
+
+/* ── HEADER ── */
+.header{background:linear-gradient(135deg,var(--navy) 0%,#1a3a8f 100%);color:white;position:sticky;top:0;z-index:1000;box-shadow:0 3px 20px rgba(0,0,0,.35);}
+.header-top{display:flex;align-items:center;min-height:68px;}
+.burger-btn{background:none;border:none;color:white;cursor:pointer;font-size:22px;padding:16px 20px;flex-shrink:0;transition:background .2s;}
+.burger-btn:hover{background:rgba(255,255,255,.12);}
+.header-logo-wrap{background:white;border-radius:8px;padding:5px 10px;margin:0 14px 0 0;flex-shrink:0;display:flex;align-items:center;justify-content:center;height:54px;}
+.header-logo-wrap img{height:44px;width:auto;object-fit:contain;}
+.header-title{flex:1;text-align:center;padding:8px 20px 8px 0;}
+.header-title h1{font-size:15px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;line-height:1.25;}
+.header-title h1 span{font-weight:400;font-size:12.5px;text-transform:none;}
+.header-title .subtitle{font-size:11.5px;opacity:.88;margin-top:4px;font-weight:600;letter-spacing:.5px;}
+.header-nav{background:rgba(0,0,0,.2);display:flex;overflow-x:auto;border-top:1px solid rgba(255,255,255,.1);}
+.nav-btn{padding:10px 20px;color:rgba(255,255,255,.78);border:none;background:transparent;cursor:pointer;font-size:12px;font-weight:600;letter-spacing:.3px;border-bottom:3px solid transparent;transition:all .2s;white-space:nowrap;display:flex;align-items:center;gap:6px;}
+.nav-btn:hover,.nav-btn.active{color:white;border-bottom-color:var(--blue);background:rgba(255,255,255,.09);}
+
+/* ── LAYOUT ── */
+.app-body{display:flex;flex:1;}
+.sidebar{width:var(--sidebar);background:var(--navy);flex-shrink:0;display:flex;flex-direction:column;padding-bottom:55px;position:relative;overflow-y:auto;transition:width .25s,opacity .25s;}
+.sidebar.hidden{width:0;opacity:0;overflow:hidden;padding:0;}
+.main{flex:1;padding:18px 22px;overflow-x:hidden;min-width:0;}
+
+/* ── SIDEBAR ── */
+.filter-section{padding:14px 15px;}
+.filter-section hr{border-color:rgba(255,255,255,.15);margin:10px 0;}
+.filter-label{color:rgba(255,255,255,.55);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.9px;margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+.filter-group{margin-bottom:11px;}
+.filter-group label{color:rgba(255,255,255,.78);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px;}
+.filter-group select{width:100%;border-radius:6px;font-size:12px;padding:7px 9px;border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.09);color:white;outline:none;cursor:pointer;}
+.filter-group select option{background:#1a3a8f;color:white;}
+.btn-reset{width:100%;border-radius:6px;background:var(--dblue);border:none;color:white;font-weight:700;font-size:12px;padding:9px;margin-top:8px;cursor:pointer;transition:background .2s;display:flex;align-items:center;justify-content:center;gap:6px;}
+.btn-reset:hover{background:#0891b2;}
+.sidebar-footer{position:absolute;bottom:8px;left:0;right:0;text-align:center;font-size:10px;color:rgba(255,255,255,.3);padding:0 10px;line-height:1.5;}
+
+/* ── TABS ── */
+.tab{display:none;}.tab.active{display:block;animation:fadeIn .2s ease;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+/* ── KPI ── */
+.kpi-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:13px;margin-bottom:18px;}
+.kpi-card{border-radius:12px;color:white;padding:16px 18px;box-shadow:0 3px 16px rgba(55,78,162,.18);position:relative;overflow:hidden;transition:transform .2s,box-shadow .2s;cursor:default;}
+.kpi-card:hover{transform:translateY(-3px);box-shadow:0 8px 24px rgba(55,78,162,.28);}
+.kpi-card .kpi-icon{position:absolute;right:12px;top:12px;font-size:34px;opacity:.18;}
+.kpi-card .kpi-val{font-size:2.1rem;font-weight:800;line-height:1;}
+.kpi-card .kpi-lbl{font-size:11px;font-weight:700;opacity:.92;margin-top:5px;letter-spacing:.3px;text-transform:uppercase;}
+.kpi-card .kpi-sub{font-size:10px;opacity:.7;margin-top:2px;}
+.bg-navy  {background:linear-gradient(135deg,#374EA2,#1CABE2);}
+.bg-blue  {background:linear-gradient(135deg,#00AEEF,#0891b2);}
+.bg-teal  {background:linear-gradient(135deg,#1CABE2,#0ea5e9);}
+.bg-green {background:linear-gradient(135deg,#80BD41,#5FA023);}
+.bg-orange{background:linear-gradient(135deg,#F26A21,#d45a10);}
+.bg-red   {background:linear-gradient(135deg,#E2231A,#b01a12);}
+
+/* ── CHART CARDS ── */
+.chart-row{display:grid;gap:14px;margin-bottom:14px;}
+.chart-row.col3{grid-template-columns:1fr 1fr 1fr;}
+.chart-row.col2{grid-template-columns:1fr 1fr;}
+.chart-row.col1{grid-template-columns:1fr;}
+.chart-card{background:white;border-radius:12px;padding:18px;box-shadow:0 2px 14px rgba(55,78,162,.09);}
+.chart-card h3{font-size:12px;font-weight:700;color:var(--navy);margin-bottom:14px;padding-bottom:8px;border-bottom:2px solid var(--light);display:flex;align-items:center;gap:8px;}
+.chart-card h3 i{color:var(--dblue);font-size:13px;}
+
+/* ── MAP ── */
+.map-toolbar{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px;align-items:end;}
+.map-toolbar label{font-size:11px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:4px;}
+.map-toolbar select{width:100%;border:1.5px solid var(--light);border-radius:7px;padding:8px 10px;font-size:12px;outline:none;background:white;cursor:pointer;transition:border-color .2s;}
+.map-toolbar select:focus{border-color:var(--blue);}
+.map-info-bar{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--gray);}
+#map{height:530px;border-radius:10px;z-index:1;}
+.map-note{background:#E8F4FD;border-left:4px solid var(--navy);border-radius:0 0 10px 10px;padding:9px 18px;font-size:12px;color:#444;}
+
+/* ── POPUP ── */
+.popup-inner{font-family:Arial;min-width:265px;max-width:330px;}
+.popup-hdr{background:var(--navy);color:white;padding:10px 15px;margin:-13px -19px 13px;border-radius:4px 4px 0 0;font-weight:800;font-size:14px;}
+.popup-table{width:100%;font-size:12px;line-height:1.95;border-collapse:collapse;}
+.popup-table td:first-child{color:#999;width:26px;vertical-align:top;padding-top:2px;}
+.popup-note{font-size:10px;color:#bbb;margin-top:6px;border-top:1px solid #eee;padding-top:5px;font-style:italic;}
+
+/* ── TABLE ── */
+.table-toolbar{display:flex;gap:10px;margin-bottom:12px;align-items:center;flex-wrap:wrap;}
+.table-toolbar input,.table-toolbar select{border:1.5px solid var(--light);border-radius:7px;padding:8px 12px;font-size:12px;outline:none;transition:border-color .2s;}
+.table-toolbar input:focus,.table-toolbar select:focus{border-color:var(--blue);}
+.table-toolbar input{flex:1;min-width:200px;}
+.table-count{font-size:11px;color:var(--gray);margin-left:auto;white-space:nowrap;font-weight:600;}
+.table-wrap{overflow-x:auto;border-radius:10px;box-shadow:0 2px 14px rgba(55,78,162,.09);}
+table.dt{width:100%;border-collapse:collapse;font-size:12px;background:white;}
+table.dt thead th{background:var(--navy);color:white;padding:11px 12px;text-align:left;font-size:11px;font-weight:700;white-space:nowrap;cursor:pointer;user-select:none;transition:background .15s;}
+table.dt thead th:hover{background:var(--dblue);}
+table.dt thead th.sort-asc::after{content:" ▲";opacity:.7;}
+table.dt thead th.sort-desc::after{content:" ▼";opacity:.7;}
+table.dt tbody tr:nth-child(even){background:#F5FAFD;}
+table.dt tbody tr:hover{background:#DCF0FB;}
+table.dt td{padding:9px 12px;border-bottom:1px solid #e8f4fd;white-space:nowrap;}
+.badge{padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700;display:inline-block;}
+.badge-lat{background:#E8EAF6;color:#374EA2;}
+.badge-pea{background:#E3F2FD;color:#0277BD;}
+.badge-fpmh{background:#E8F5E9;color:#2E7D32;}
+.badge-eau{background:#E3F2FD;color:#0277BD;font-size:10px;}
+.badge-ass{background:#EDE7F6;color:#4527A0;font-size:10px;}
+.bar-wrap{background:#e0f3fd;border-radius:4px;height:7px;width:70px;display:inline-block;vertical-align:middle;margin-left:5px;}
+.bar-fill{background:var(--dblue);border-radius:4px;height:7px;}
+.export-row{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
+.btn-exp{background:var(--navy);color:white;border:none;border-radius:7px;padding:9px 18px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:7px;transition:background .2s;}
+.btn-exp:hover{background:var(--dblue);}
+
+/* ── QUALITE ── */
+.alert-grid{display:grid;grid-template-columns:1fr 1fr;gap:13px;margin-bottom:18px;}
+.alert-box{border-radius:10px;padding:15px 17px;border-left:5px solid;}
+.alert-box h4{font-size:13px;font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:7px;}
+.alert-box p{font-size:12px;line-height:1.6;color:#444;margin:0;}
+.alert-crit{background:#FFEBEE;border-color:var(--red);}
+.alert-warn{background:#FFF3E0;border-color:var(--orange);}
+.alert-info{background:#E3F2FD;border-color:var(--navy);}
+.alert-ok  {background:#E8F5E9;border-color:var(--green);}
+.prog-item{margin-bottom:9px;}
+.prog-label{display:flex;justify-content:space-between;font-size:12px;font-weight:600;margin-bottom:3px;}
+.prog-bg{height:11px;background:#DDE8F0;border-radius:5px;overflow:hidden;}
+.prog-fill{height:11px;border-radius:5px;transition:width .9s ease;}
+
+/* ── FOOTER ── */
+.footer{background:var(--navy);color:rgba(255,255,255,.72);text-align:center;padding:13px 20px;font-size:11.5px;}
+.footer strong{color:white;}
+
+/* ── RESPONSIVE ── */
+@media(max-width:960px){.kpi-grid{grid-template-columns:repeat(3,1fr);}.chart-row.col3{grid-template-columns:1fr 1fr;}.map-toolbar{grid-template-columns:1fr 1fr;}}
+@media(max-width:600px){.kpi-grid{grid-template-columns:repeat(2,1fr);}.chart-row.col3,.chart-row.col2{grid-template-columns:1fr;}.main{padding:12px;}}
+</style>
+</head>
+<body>
+
+<!-- ══════════ HEADER ══════════ -->
+<header class="header">
+  <div class="header-top">
+    <button class="burger-btn" onclick="toggleSidebar()" title="Afficher / masquer le menu">&#9776;</button>
+    <div class="header-logo-wrap">
+      <img src="data:image/png;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCADdAOQDASIAAhEBAxEB/8QAHAABAAMBAQEBAQAAAAAAAAAAAAUGBwQDAgEI/8QAQxAAAQQBAgMECAMFBgQHAAAAAQACAwQFBhESITEHE0FRFBUiVmFxktIygZEIFjZ0sSM4QlKhsxeChLIzNWLB0eHw/8QAGwEBAAIDAQEAAAAAAAAAAAAAAAMEAQIFBgf/xAA2EQABAwIDBQUJAAICAwAAAAABAAIDBBESITEFE0FRoSJhcZHRBhQyUlOBscHwFTMkQiU0wv/aAAwDAQACEQMRAD8A/stEREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREREBBG4IKIiIiHkiIiAg9CCiIiIiIiIiIiIiIiIiIiIqp2jayZo+pUsPpOtCxIWbB/DtsN1LBA+eQRxi5Kr1VVFSRGaY2aNSrWi4dP5AZbC1MkIu6FmIScG+/Dv4KI7QtVt0jiob76brQkl7vhD+Hblvusx08kku5aO1e1liWshhgNQ82Za9+5WVFVp9Xth7Oxq80iWmJkncB/P2nhu2+3xVbj7XKUuFjsQ4qebIzyOZDTidxEgf4iQOQ+HVWY9mVUoJYy9jY6a/wBx0VOfbdDAQJJLXaHDI5g6cOPLVaauXMekeqbfonF6R3Lu64evFty2/NZVJ2tZvHWo/XelX1oHnqC5rtvhxDYrScJqChmtPDNY55kgMbncLhs5pA5tPkVmfZ1TSYXyNyPHIjotaTbNFXl0UT+0BmCCDbnYhUTsmGvBqOx+9HrD0L0R3B35HD3nGzbp47cS1FUjs51+3V+Qt1G411T0eISFxk4t9ztt0Xtr3X+L0rIyp3Ul3ISDdteM/hHgXHw38uqnrYKmpq93ug19tBp4qpsyqoqLZ2+35dHc9p17+Gl+iuKLJZe1HUtFrLeU0dLBRcR7e7gQPmRt+q0TSeocdqXER5LHPJY7k9juTo3eLSFWqdnVFMzG8ZcwQR0V2i2zR1shiid2tbEEG3PMBSyLP9bdplXC5Y4bFY+TK5Fp2e1h9lp/y8tyT+Shn9quaxc8f7xaTnq13nk9hIP5cQ2J+G6lj2PVyMDmt10zAJ+17qCf2j2dDI6Nz/hyJAJAPeQLLWVh3aRm9Qai7Qf3RxNt9aFsghaxrywPdtxOc4jnsB4fBaRltZVotJxahw9SbLQyvDRHCCHDfruNjsR5LEINRzM7Uv3j9U2HS9+6T0Mb95zYRt0/PounsKikDpJSzNoNr2+LwXD9qtpwuZDTtkID3NxWvmw8iNfstd7MtG5jS921Lkcs27FNGGtYHOPC4HrzVrz2Xq4epHNY4nPmlbDDE0bukkcdg0KI0JqmfUzLTp8NZxvcFoAm39vffpuAqdruxPa1Xchfbljhrz1m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" alt="UNICEF – pour chaque enfant">
+    </div>
+    <div class="header-title">
+      <h1>Dashboard de Réalisation des Sites d'Intervention WASH
+        <span>(Eau &amp; Assainissement)</span>
+      </h1>
+      <div class="subtitle">&#x1F4C5;&nbsp; Année : 2024 – 2025 &nbsp;|&nbsp; UNICEF Bénin</div>
+    </div>
+  </div>
+  <nav class="header-nav">
+    <button class="nav-btn active"  onclick="showTab('overview', this)"><i class="fa fa-chart-bar"></i> Vue d'ensemble</button>
+    <button class="nav-btn" onclick="showTab('map',      this)"><i class="fa fa-map-marked-alt"></i> Cartographie</button>
+    <button class="nav-btn" onclick="showTab('analyses', this)"><i class="fa fa-chart-line"></i> Analyses</button>
+    <button class="nav-btn" onclick="showTab('data',     this)"><i class="fa fa-table"></i> Données</button>
+    <button class="nav-btn" onclick="showTab('quality',  this)"><i class="fa fa-clipboard-check"></i> Qualité</button>
+  </nav>
+</header>
+
+<!-- ══════════ APP BODY ══════════ -->
+<div class="app-body">
+
+<!-- ── SIDEBAR ── -->
+<aside class="sidebar" id="sidebar">
+  <div class="filter-section">
+    <div class="filter-label"><i class="fa fa-sliders-h"></i>&nbsp; Filtres globaux</div>
+    <hr>
+    <div class="filter-group">
+      <label>Catégorie</label>
+      <select id="f_cat" onchange="applyFilters()">
+        <option value="">Toutes</option>
+        <option value="Eau potable">💧 Eau potable (PEA &amp; FPMH)</option>
+        <option value="Assainissement">🚽 Assainissement (Latrines)</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>Type d'ouvrage</label>
+      <select id="f_type" onchange="applyFilters()">
+        <option value="">Tous</option>
+        <option>Latrine</option><option>PEA</option><option>FPMH</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>Département</label>
+      <select id="f_dept" onchange="applyFilters()">
+        <option value="">Tous</option>
+        <option>Atacora</option><option>Alibori</option><option>Zou</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>Financement</label>
+      <select id="f_grant" onchange="applyFilters()">
+        <option value="">Tous</option>
+        <option>Pays-Bas/DGIS</option><option>Japon</option>
+        <option>Corée</option><option>À compléter</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>Année</label>
+      <select id="f_annee" onchange="applyFilters()">
+        <option value="">Toutes</option>
+        <option>2023</option><option>2024</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>Nature du lieu</label>
+      <select id="f_nature" onchange="applyFilters()">
+        <option value="">Tous</option>
+        <option>École</option>
+        <option>Milieu communautaire</option>
+        <option>Centre de santé</option>
+        <option>Centre social</option>
+      </select>
+    </div>
+    <button class="btn-reset" onclick="resetFilters()">
+      <i class="fa fa-rotate-left"></i> Réinitialiser les filtres
+    </button>
+  </div>
+  <div class="sidebar-footer">
+    UNICEF Bénin &nbsp;•&nbsp; WASH 2024–2025<br>
+    145 enregistrements &nbsp;•&nbsp; Avril 2025
+  </div>
+</aside>
+
+<!-- ── MAIN ── -->
+<main class="main">
+
+  <!-- ══ TAB : VUE D'ENSEMBLE ══ -->
+  <div id="tab-overview" class="tab active">
+    <div class="kpi-grid">
+      <div class="kpi-card bg-navy">
+        <i class="fa fa-hard-hat kpi-icon"></i>
+        <div class="kpi-val" id="kv-total">145</div>
+        <div class="kpi-lbl">Total ouvrages</div>
+        <div class="kpi-sub">Base 2023–2025</div>
+      </div>
+      <div class="kpi-card bg-blue">
+        <i class="fa fa-toilet kpi-icon"></i>
+        <div class="kpi-val" id="kv-lat">116</div>
+        <div class="kpi-lbl">Latrines</div>
+        <div class="kpi-sub">Assainissement</div>
+      </div>
+      <div class="kpi-card bg-teal">
+        <i class="fa fa-tint kpi-icon"></i>
+        <div class="kpi-val" id="kv-pea">24</div>
+        <div class="kpi-lbl">PEA</div>
+        <div class="kpi-sub">Eau potable</div>
+      </div>
+      <div class="kpi-card bg-green">
+        <i class="fa fa-cog kpi-icon"></i>
+        <div class="kpi-val" id="kv-fpmh">5</div>
+        <div class="kpi-lbl">FPMH</div>
+        <div class="kpi-sub">Eau potable</div>
+      </div>
+      <div class="kpi-card bg-orange">
+        <i class="fa fa-users kpi-icon"></i>
+        <div class="kpi-val" id="kv-benef">~49K</div>
+        <div class="kpi-lbl">Bénéficiaires</div>
+        <div class="kpi-sub">Estimation disponible</div>
+      </div>
+      <div class="kpi-card bg-red">
+        <i class="fa fa-map-pin kpi-icon"></i>
+        <div class="kpi-val" id="kv-sites">141</div>
+        <div class="kpi-lbl">Sites cartographiés</div>
+        <div class="kpi-sub">Sur 145 filtrés</div>
+      </div>
+    </div>
+    <div class="chart-row col3">
+      <div class="chart-card">
+        <h3><i class="fa fa-chart-pie"></i> Répartition par type d'ouvrage</h3>
+        <div style="height:240px"><canvas id="ch-type"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h3><i class="fa fa-chart-bar"></i> Ouvrages par département</h3>
+        <div style="height:240px"><canvas id="ch-dept"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h3><i class="fa fa-calendar-alt"></i> Évolution temporelle</h3>
+        <div style="height:240px"><canvas id="ch-year"></canvas></div>
+      </div>
+    </div>
+    <div class="chart-row col3">
+      <div class="chart-card">
+        <h3><i class="fa fa-building"></i> Nature du lieu</h3>
+        <div style="height:220px"><canvas id="ch-nature"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h3><i class="fa fa-hand-holding-usd"></i> Sources de financement</h3>
+        <div style="height:220px"><canvas id="ch-grant"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h3><i class="fa fa-venus-mars"></i> Bénéficiaires par sexe et type</h3>
+        <div style="height:220px"><canvas id="ch-benef"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ TAB : CARTOGRAPHIE ══ -->
+  <div id="tab-map" class="tab">
+    <div class="chart-card" style="border-radius:12px 12px 0 0;margin-bottom:0;">
+      <h3><i class="fa fa-map-marked-alt"></i> Cartographie des Sites WASH – Bénin (positions communales)</h3>
+      <div class="map-toolbar">
+        <div>
+          <label>Fond de carte</label>
+          <select id="map-layer" onchange="switchLayer()">
+            <option value="osm">OpenStreetMap</option>
+            <option value="sat">Satellite (ESRI)</option>
+            <option value="topo">Topo (ESRI)</option>
+            <option value="carto">Carto Light</option>
+          </select>
+        </div>
+        <div>
+          <label>Colorier par</label>
+          <select id="map-color" onchange="updateMapMarkers()">
+            <option value="type">Type d'ouvrage</option>
+            <option value="dept">Département</option>
+            <option value="nature">Nature du lieu</option>
+            <option value="grant">Financement</option>
+          </select>
+        </div>
+        <div>
+          <label>Affichage</label>
+          <select id="map-mode" onchange="updateMapMarkers()">
+            <option value="cluster">Clusters (groupés)</option>
+            <option value="individual">Points individuels</option>
+          </select>
+        </div>
+        <div style="display:flex;align-items:flex-end;padding-bottom:2px;">
+          <span class="map-info-bar">
+            <i class="fa fa-info-circle" style="color:var(--navy);"></i>
+            <span id="map-info-txt">Chargement…</span>
+          </span>
+        </div>
+      </div>
+      <div id="map"></div>
+    </div>
+    <div class="map-note">
+      <i class="fa fa-info-circle" style="color:var(--navy);"></i>
+      Positions basées sur les <strong>chefs-lieux de communes</strong> (coordonnées administratives).
+      Un léger décalage sépare les sites d'une même commune.
+      <strong>Cliquer sur un point</strong> pour afficher le détail complet du site.
+    </div>
+  </div>
+
+  <!-- ══ TAB : ANALYSES ══ -->
+  <div id="tab-analyses" class="tab">
+    <div class="chart-row col2">
+      <div class="chart-card">
+        <h3><i class="fa fa-layer-group"></i> Type × Département</h3>
+        <div style="height:280px"><canvas id="ch-typedept"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h3><i class="fa fa-users-cog"></i> Comités de gestion</h3>
+        <div style="height:280px"><canvas id="ch-comite"></canvas></div>
+      </div>
+    </div>
+    <div class="chart-row col2">
+      <div class="chart-card">
+        <h3><i class="fa fa-chart-area"></i> Bénéficiaires par département (F/H)</h3>
+        <div style="height:250px"><canvas id="ch-benefdept"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h3><i class="fa fa-balance-scale"></i> Ratio Femmes / Hommes par département</h3>
+        <div style="height:250px"><canvas id="ch-ratio"></canvas></div>
+      </div>
+    </div>
+    <div class="chart-row col1">
+      <div class="chart-card">
+        <h3><i class="fa fa-th"></i> Matrice : Type × Nature du lieu</h3>
+        <div style="height:220px"><canvas id="ch-heatmap"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ TAB : DONNÉES ══ -->
+  <div id="tab-data" class="tab">
+    <div class="export-row">
+      <button class="btn-exp" onclick="exportCSV()"><i class="fa fa-file-csv"></i> Exporter CSV</button>
+      <button class="btn-exp" onclick="exportExcel()"><i class="fa fa-file-excel"></i> Exporter Excel</button>
+    </div>
+    <div class="table-toolbar">
+      <input type="text" id="search-input" placeholder="🔍 Rechercher commune, village, type…" oninput="renderTable()">
+      <select id="ft-cat"  onchange="renderTable()"><option value="">Toutes catégories</option><option value="Eau potable">Eau potable</option><option value="Assainissement">Assainissement</option></select>
+      <select id="ft-type" onchange="renderTable()"><option value="">Tous types</option><option>Latrine</option><option>PEA</option><option>FPMH</option></select>
+      <select id="ft-dept" onchange="renderTable()"><option value="">Tous départements</option><option>Atacora</option><option>Aliboli</option><option>Zou</option></select>
+      <span class="table-count" id="tbl-count"></span>
+    </div>
+    <div class="table-wrap">
+      <table class="dt" id="main-table">
+        <thead><tr>
+          <th onclick="sortTable(0)">ID</th>
+          <th onclick="sortTable(1)">Type</th>
+          <th onclick="sortTable(2)">Catégorie</th>
+          <th onclick="sortTable(3)">Département</th>
+          <th onclick="sortTable(4)">Commune</th>
+          <th onclick="sortTable(5)">Arrondissement</th>
+          <th onclick="sortTable(6)">Village</th>
+          <th onclick="sortTable(7)">Nature du lieu</th>
+          <th onclick="sortTable(8)">Financement</th>
+          <th onclick="sortTable(9)">Comité</th>
+          <th onclick="sortTable(10)">Femmes/F.</th>
+          <th onclick="sortTable(11)">Hommes/G.</th>
+          <th onclick="sortTable(12)">Total bénéf.</th>
+          <th onclick="sortTable(13)">Récep. prov.</th>
+          <th onclick="sortTable(14)">Récep. déf.</th>
+          <th onclick="sortTable(15)">Année</th>
+          <th onclick="sortTable(16)">Latitude</th>
+          <th onclick="sortTable(17)">Longitude</th>
+        </tr></thead>
+        <tbody id="table-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ══ TAB : QUALITÉ ══ -->
+  <div id="tab-quality" class="tab">
+    <div class="alert-grid">
+      <div class="alert-box alert-crit">
+        <h4><i class="fa fa-times-circle" style="color:var(--red)"></i> CRITIQUE – GPS manquants</h4>
+        <p>77% des sites sans coordonnées GPS valides. Déployer KoBoCollect en priorité pour la collecte terrain.</p>
+      </div>
+      <div class="alert-box alert-crit">
+        <h4><i class="fa fa-times-circle" style="color:var(--red)"></i> CRITIQUE – Département absent</h4>
+        <p>29 enregistrements (20%) sans département. Vérification terrain ou croisement avec la liste des communes requis.</p>
+      </div>
+      <div class="alert-box alert-warn">
+        <h4><i class="fa fa-exclamation-circle" style="color:var(--orange)"></i> MOYEN – Grants incomplets</h4>
+        <p>49 entrées avec grant "À compléter". Validation requise par le responsable programme.</p>
+      </div>
+      <div class="alert-box alert-warn">
+        <h4><i class="fa fa-exclamation-circle" style="color:var(--orange)"></i> MOYEN – Bénéficiaires manquants</h4>
+        <p>41% des ouvrages sans données bénéficiaires. Compléter lors des prochaines visites terrain.</p>
+      </div>
+      <div class="alert-box alert-info">
+        <h4><i class="fa fa-info-circle" style="color:var(--navy)"></i> INFO – Formats GPS hétérogènes</h4>
+        <p>5 formats différents dans la base brute (DMS, décimal, UTM…). KoBoCollect standardise sur WGS84 décimal.</p>
+      </div>
+      <div class="alert-box alert-ok">
+        <h4><i class="fa fa-check-circle" style="color:var(--green)"></i> BON – Structure nettoyée</h4>
+        <p>145 enregistrements valides, 20 colonnes structurées. Base exploitable pour reporting UNICEF.</p>
+      </div>
+    </div>
+    <div class="chart-row col2">
+      <div class="chart-card">
+        <h3><i class="fa fa-tasks"></i> Taux de complétude par champ</h3>
+        <div id="completude-bars" style="padding:4px 0;"></div>
+      </div>
+      <div class="chart-card">
+        <h3><i class="fa fa-chart-pie"></i> Synthèse qualité globale</h3>
+        <div style="height:320px"><canvas id="ch-qualite"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+</main>
+</div>
+
+<!-- ══════════ FOOTER ══════════ -->
+<footer class="footer">
+  <strong>UNICEF Bénin</strong> &nbsp;•&nbsp;
+  Dashboard de Réalisation des Sites d'Intervention WASH (Eau &amp; Assainissement) &nbsp;•&nbsp;
+  Données 2024–2025 &nbsp;•&nbsp; Avril 2025
+</footer>
+
+<script>
+// ═══════════════════════════════════════════
+// DONNÉES RÉELLES (145 enregistrements)
+// ═══════════════════════════════════════════
+const D = {"total":163,"latrines":0,"pea":24,"fpmh":5,"total_benef":4168909,"n_depts":3,"comite_oui":0,"comite_non":48,"comite_nd":115,"type_counts":{"LATRINE":116,"PEA":24,"":18,"FPMH":5},"dept_counts":{"Zou":62,"Alibori":56,"Atacora":44},"nature_counts":{"Ecole":128,"Milieu communautaire":10,"Centre de Santé":9,"Place publique":7,"Ecole groupe A":1,"Ecole groupe B":1,"Ecole secondaire":1,"Dispensaire isolé":1,"Centre social":1,"Ecole et Centre de Santé":1},"grant_counts":{"Pays-Bas/DGIS":63,"Japon":19,"Corée":1,"À compléter":0},"year_labels":["2023","2024"],"year_latrine":[0,0],"year_pea":[0,19],"year_fpmh":[0,5],"dept_ff":{"Alibori":17752,"Atacora":3581,"Zou":2073430},"dept_hg":{"Alibori":12155,"Atacora":3851,"Zou":5251},"map_points":[{"id":1,"type":"PEA","cat":"Eau potable","dept":"Atacora","commune":"Natitingou","arrond":"Tchoumi-Tchoumi","village":"Wimmou","nature":"Ecole","grant":"Japon","comite":"","annee":"2024","ff":null,"hg":null,"tot":null,"dp":"Mai 2024","dd":"","lat":10.33094,"lon":1.3355},{"id":2,"type":"PEA","cat":"Eau potable","dept":"Atacora","commune":"Natitingou","arrond":"Kouandata","village":"Kouandata","nature":"Centre de Santé","grant":"Japon","comite":"","annee":"2024","ff":null,"hg":null,"tot":null,"dp":"Mai 2024","dd":"","lat":10.2945,"lon":1.35532},{"id":3,"type":"PEA","cat":"Eau potable","dept":"Atacora","commune":"Natitingou","arrond":"Perma","village":"Gnagnanmou","nature":"Ecole","grant":"Japon","comite":"","annee":"2024","ff":null,"hg":null,"tot":null,"dp":"Mai 2024","dd":"","lat":10.34065,"lon":1.40067},{"id":4,"type":"PEA","cat":"Eau potable","dept":"Atacora","commune":"Natitingou","arrond":"Perma","village":"Sinaissire/Kouponco","nature":"Ecole","grant":"Japon","comite":"","annee":"2024","ff":null,"hg":null,"tot":null,"dp":"Mai 2024","dd":"","lat":10.35622,"lon":1.34169},{"id":5,"type":"PEA","cat":"Eau potable","dept":"Atacora","commune":"Natitingou","arrond":"Kouandata","village":"Tigninti","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"","annee":"2024","ff":null,"hg":null,"tot":null,"dp":"Mai 2024","dd":"","lat":10.30919,"lon":1.33598},{"id":6,"type":"LATRINE","cat":"Autre","dept":"Atacora","commune":"Natitingou","arrond":"Kouandata","village":"Tigninti","nature":"Ecole groupe A","grant":"Pays-Bas/DGIS","comite":"","annee":"2024","ff":116,"hg":128,"tot":244,"dp":"Mai 2024","dd":"","lat":10.28886,"lon":1.38354},{"id":7,"type":"LATRINE","cat":"Autre","dept":"Atacora","commune":"Natitingou","arrond":"Kouandata","village":"Tigninti","nature":"Ecole groupe B","grant":"Pays-Bas/DGIS","comite":"","annee":"2024","ff":75,"hg":82,"tot":157,"dp":"Mai 2024","dd":"","lat":10.26965,"lon":1.35288},{"id":8,"type":"LATRINE","cat":"Autre","dept":"Atacora","commune":"Natitingou","arrond":"Natitingou Iii","village":"Yimporima","nature":"Ecole","grant":"Non renseigné","comite":"","annee":"","ff":132,"hg":125,"tot":257,"dp":"","dd":"","lat":10.33199,"lon":1.38749},{"id":9,"type":"LATRINE","cat":"Autre","dept":"Atacora","commune":"Natitingou","arrond":"Natitingou Iii","village":"Bérécingou","nature":"Ecole","grant":"Non renseigné","comite":"","annee":"","ff":247,"hg":208,"tot":455,"dp":"","dd":"","lat":10.28904,"lon":1.39193},{"id":10,"type":"LATRINE","cat":"Autre","dept":"Atacora","commune":"Natitingou","arrond":"Perma","village":"Sinaissire","nature":"Ecole","grant":"Non renseigné","comite":"","annee":"","ff":108,"hg":137,"tot":245,"dp":"","dd":"","lat":10.34794,"lon":1.33365},{"id":11,"type":"LATRINE","cat":"Autre","dept":"Atacora","commune":"Natitingou","arrond":"Perma","village":"Koussigou","nature":"Ecole","grant":"Non renseigné","comite":"","annee":"","ff":136,"hg":144,"tot":280,"dp":"","dd":"","lat":10.34758,"lon":1.40281},{"id":12,"type":"LATRINE","cat":"Autre","dept":"Atacora","commune":"Matéri","arrond":"Dassari","village":"Pouri","nature":"Ecole","grant":"Non renseigné","comite":"","annee":"","ff":208,"hg":310,"tot":518,"dp":"","dd":"","lat":10.67603,"lon":1.03155},{"id":13,"type":"LATRINE","cat":"Autre","dept":"Atacora","commune":"Matéri","arrond":"Matéri","village":"Matéri Centre","nature":"Ecole","grant":"Non renseigné","comite":"","annee":"","ff":182,"hg":194,"tot":376,"dp":"","dd":"","lat":10.73772,"lon":1.04966},{"id":14,"type":"LATRINE","cat":"Autre","dept":"Atacora","commune":"Matéri","arrond":"Nodi","village":"Nodi","nature":"Ecole secondaire","grant":"Non renseigné","comite":"","annee":"","ff":111,"hg":214,"tot":325,"dp":"","dd":"","lat":10.65127,"lon":1.02567},{"id":15,"type":"LATRINE","cat":"Autre","dept":"Atacora","commune":"Matéri","arrond":"Dassari","village":"Nagassega ","nature":"Ecole","grant":"Non renseigné","comite":"","annee":"","ff":204,"hg":242,"tot":446,"dp":"","dd":"","lat":10.72675,"lon":1.07637},{"id":16,"type":"LATRINE","cat":"Autre","dept":"Atacora","commune":"Matéri","arrond":"Dassari","village":"Tamoussega","nature":"Ecole","grant":"Non renseigné","comite":"","annee":"","ff":144,"hg":185,"tot":329,"dp":"","dd":"","lat":10.72271,"lon":1.08897},{"id":17,"type":"LATRINE","cat":"Autre","dept":"Atacora","commune":"Kérou","arrond":"Kérou Centre","village":"Kparatégui","nature":"Place publique","grant":"Non renseigné","comite":"","annee":"2023","ff":103,"hg":97,"tot":200,"dp":"Décembre 2023","dd":"","lat":10.83562,"lon":2.16131},{"id":18,"type":"LATRINE","cat":"Autre","dept":"Atacora","commune":"Kérou","arrond":"Firou","village":"Djoléni ","nature":"Dispensaire isolé","grant":"Non renseigné","comite":"","annee":"2023","ff":103,"hg":97,"tot":200,"dp":"Décembre 2023","dd":"","lat":10.81985,"lon":2.1192},{"id":19,"type":"LATRINE","cat":"Autre","dept":"Atacora","commune":"Kérou","arrond":"Kérou Centre","village":"","nature":"Centre social","grant":"Non renseigné","comite":"","annee":"2023","ff":103,"hg":97,"tot":200,"dp":"Décembre 2023","dd":"","lat":10.86494,"lon":2.12585},{"id":20,"type":"LATRINE","cat":"Autre","dept":"Atacora","commune":"Kérou","arrond":"Kaobagou","village":"","nature":"Place publique","grant":"Non renseigné","comite":"","annee":"2023","ff":103,"hg":97,"tot":200,"dp":"Décembre 2023","dd":"","lat":10.86817,"lon":2.12174},{"id":21,"type":"LATRINE","cat":"Autre","dept":"Atacora","commune":"Kérou","arrond":"Kaobagou","village":"","nature":"Place publique","grant":"Non renseigné","comite":"","annee":"2023","ff":103,"hg":97,"tot":200,"dp":"Décembre 2023","dd":"","lat":10.85246,"lon":2.06858},{"id":22,"type":"LATRINE","cat":"Autre","dept":"Atacora","commune":"Matéri","arrond":"Gouandé","village":"Doga","nature":"Ecole","grant":"Non renseigné","comite":"","annee":"2023","ff":103,"hg":97,"tot":200,"dp":"Décembre 2023","dd":"","lat":10.66479,"lon":1.04494},{"id":23,"type":"LATRINE","cat":"Autre","dept":"Atacora","commune":"Matéri","arrond":"Gouandé","village":"Bahoun","nature":"Place publique","grant":"Non renseigné","comite":"","annee":"2023","ff":103,"hg":97,"tot":200,"dp":"Décembre 2023","dd":"","lat":10.64998,"lon":1.03928},{"id":24,"type":"LATRINE","cat":"Autre","dept":"Atacora","commune":"Matéri","arrond":"Gouandé","village":"Sindori","nature":"Place publique","grant":"Non renseigné","comite":"","annee":"2023","ff":103,"hg":97,"tot":200,"dp":"Décembre 2023","dd":"","lat":10.6521,"lon":1.0438},{"id":25,"type":"LATRINE","cat":"Autre","dept":"Atacora","commune":"Matéri","arrond":"Tantega","village":"Nambouli","nature":"Place publique","grant":"Non renseigné","comite":"","annee":"2023","ff":103,"hg":97,"tot":200,"dp":"Décembre 2023","dd":"","lat":10.70557,"lon":1.05248},{"id":26,"type":"LATRINE","cat":"Autre","dept":"Atacora","commune":"Matéri","arrond":"Dassari","village":"Porga","nature":"Place publique","grant":"Non renseigné","comite":"","annee":"2023","ff":103,"hg":97,"tot":200,"dp":"Décembre 2023","dd":"","lat":10.67902,"lon":1.03695},{"id":27,"type":"LATRINE","cat":"Autre","dept":"Atacora","commune":"Tanguieta","arrond":"Tanongou","village":"Batia","nature":"","grant":"Non renseigné","comite":"","annee":"2023","ff":103,"hg":97,"tot":200,"dp":"Décembre 2023","dd":"","lat":10.5997,"lon":1.31367},{"id":28,"type":"LATRINE","cat":"Autre","dept":"Atacora","commune":"Tanguieta","arrond":"","village":"Yangou","nature":"","grant":"Non renseigné","comite":"","annee":"2023","ff":103,"hg":97,"tot":200,"dp":"Décembre 2023","dd":"","lat":10.6378,"lon":1.28091},{"id":29,"type":"PEA","cat":"Eau potable","dept":"Atacora","commune":"Tanguieta","arrond":"\tN'Dahonta","village":"\tSamongou/Touatouagou","nature":"Ecole","grant":"Japon","comite":"","annee":"2024","ff":null,"hg":null,"tot":null,"dp":"Mai 2024","dd":"","lat":10.59011,"lon":1.29291},{"id":30,"type":"PEA","cat":"Eau potable","dept":"Atacora","commune":"Tanguieta","arrond":"\tN'Dahonta","village":"Tchaéta","nature":"Ecole","grant":"Japon","comite":"","annee":"2024","ff":null,"hg":null,"tot":null,"dp":"Mai 2024","dd":"","lat":10.58934,"lon":1.25795},{"id":31,"type":"PEA","cat":"Eau potable","dept":"Atacora","commune":"Tanguieta","arrond":"Cotiakou","village":"Tanféré","nature":"Ecole","grant":"Japon","comite":"","annee":"2024","ff":null,"hg":null,"tot":null,"dp":"Mai 2024","dd":"","lat":10.67195,"lon":1.284},{"id":32,"type":"PEA","cat":"Eau potable","dept":"Atacora","commune":"Tanguieta","arrond":"Cotiakou","village":"Pemoubou","nature":"Ecole","grant":"Japon","comite":"","annee":"2024","ff":null,"hg":null,"tot":null,"dp":"Mai 2024","dd":"","lat":10.62869,"lon":1.28846},{"id":33,"type":"PEA","cat":"Eau potable","dept":"Atacora","commune":"Matéri","arrond":"\tGouandé","village":"\tGouandé","nature":"Ecole","grant":"Japon","comite":"","annee":"2024","ff":null,"hg":null,"tot":null,"dp":"Mai 2024","dd":"","lat":10.72629,"lon":1.0936},{"id":34,"type":"PEA","cat":"Eau potable","dept":"Atacora","commune":"Natitingou","arrond":"Natitingou Iii","village":"Yetapo","nature":"Ecole et Centre de Santé","grant":"Corée","comite":"","annee":"2024","ff":null,"hg":null,"tot":null,"dp":"août 2024","dd":"","lat":10.2899,"lon":1.33621},{"id":35,"type":"PEA","cat":"Eau potable","dept":"Atacora","commune":"Matéri","arrond":"Gouandé","village":"Koundou","nature":"Milieu communautaire","grant":"Japon","comite":"","annee":"2024","ff":null,"hg":null,"tot":null,"dp":"Juillet 2024","dd":"","lat":10.67355,"lon":1.04277},{"id":36,"type":"PEA","cat":"Eau potable","dept":"Atacora","commune":"Matéri","arrond":"Tantega","village":"Nambouli/Douaka","nature":"Milieu communautaire","grant":"Japon","comite":"","annee":"2024","ff":null,"hg":null,"tot":null,"dp":"Juillet 2024","dd":"","lat":10.6631,"lon":1.11029},{"id":37,"type":"PEA","cat":"Eau potable","dept":"Atacora","commune":"Matéri","arrond":"Dassari","village":"Sétchindiga/Daga","nature":"Milieu communautaire","grant":"Japon","comite":"","annee":"2024","ff":null,"hg":null,"tot":null,"dp":"Juillet 2024","dd":"","lat":10.72964,"lon":1.04747},{"id":38,"type":"PEA","cat":"Eau potable","dept":"Atacora","commune":"Tanguieta","arrond":"Taiakou","village":"Koutchoutchougou","nature":"Milieu communautaire","grant":"Japon","comite":"","annee":"2024","ff":null,"hg":null,"tot":null,"dp":"Juillet 2024","dd":"","lat":10.63854,"lon":1.25956},{"id":39,"type":"PEA","cat":"Eau potable","dept":"Atacora","commune":"Tanguieta","arrond":"Tanongou","village":"Kayarika","nature":"Milieu communautaire","grant":"Japon","comite":"","annee":"2024","ff":null,"hg":null,"tot":null,"dp":"Juillet 2024","dd":"","lat":10.66445,"lon":1.26589},{"id":40,"type":"FPMH","cat":"Eau potable","dept":"Atacora","commune":"Tanguieta","arrond":"Tanongou","village":"Tchafarga","nature":"Milieu communautaire","grant":"Japon","comite":"","annee":"2024","ff":null,"hg":null,"tot":null,"dp":"Octobre 2024","dd":"","lat":10.59949,"lon":1.24466},{"id":41,"type":"FPMH","cat":"Eau potable","dept":"Atacora","commune":"Tanguieta","arrond":"Taiakou","village":"MATANRGUI/Koumali","nature":"Milieu communautaire","grant":"Japon","comite":"","annee":"2024","ff":292,"hg":308,"tot":600,"dp":"Octobre 2024","dd":"","lat":10.62914,"lon":1.24627},{"id":42,"type":"FPMH","cat":"Eau potable","dept":"Atacora","commune":"Tanguieta","arrond":"Taiakou","village":"Ouankou/Fanri","nature":"Milieu communautaire","grant":"Japon","comite":"","annee":"2024","ff":null,"hg":null,"tot":null,"dp":"Octobre 2024","dd":"","lat":10.63146,"lon":1.30978},{"id":43,"type":"FPMH","cat":"Eau potable","dept":"Atacora","commune":"Tanguieta","arrond":"Cotiakou","village":"Bourpouya","nature":"Milieu communautaire","grant":"Japon","comite":"","annee":"2024","ff":null,"hg":null,"tot":null,"dp":"Octobre 2024","dd":"","lat":10.61294,"lon":1.24193},{"id":44,"type":"FPMH","cat":"Eau potable","dept":"Atacora","commune":"Tanguieta","arrond":"N’Dahonta","village":"Dodongou/Tontonkou","nature":"Milieu communautaire","grant":"Japon","comite":"","annee":"2024","ff":390,"hg":410,"tot":800,"dp":"Octobre 2024","dd":"","lat":10.67275,"lon":1.27095},{"id":45,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Banikoara","arrond":"Somperekou","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","annee":"2024","ff":254,"hg":279,"tot":533,"dp":"","dd":"Novembre 2024","lat":11.26209,"lon":2.39471},{"id":46,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Banikoara","arrond":"Somperekou","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","annee":"2024","ff":58,"hg":20,"tot":78,"dp":"","dd":"Novembre 2024","lat":11.26396,"lon":2.45274},{"id":47,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Banikoara","arrond":"Toura","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","annee":"2024","ff":428,"hg":528,"tot":956,"dp":"","dd":"Novembre 2024","lat":11.33221,"lon":2.43222},{"id":48,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Banikoara","arrond":"Toura","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","annee":"2024","ff":null,"hg":null,"tot":null,"dp":"","dd":"Novembre 2024","lat":11.25935,"lon":2.42816},{"id":49,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Banikoara","arrond":"Toura","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","annee":"2024","ff":92,"hg":121,"tot":213,"dp":"","dd":"Novembre 2024","lat":11.35261,"lon":2.44291},{"id":50,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Banikoara","arrond":"Kokiborou","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","annee":"2024","ff":234,"hg":261,"tot":495,"dp":"","dd":"Novembre 2024","lat":11.35011,"lon":2.47608},{"id":51,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Banikoara","arrond":"Goumori","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","annee":"2024","ff":176,"hg":227,"tot":403,"dp":"","dd":"Novembre 2024","lat":11.25415,"lon":2.46207},{"id":52,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Banikoara","arrond":"Somperekou","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","annee":"2024","ff":257,"hg":279,"tot":536,"dp":"","dd":"Novembre 2024","lat":11.32117,"lon":2.4437},{"id":53,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Banikoara","arrond":"Founougo","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","annee":"2024","ff":364,"hg":728,"tot":1092,"dp":"","dd":"Novembre 2024","lat":11.27968,"lon":2.4541},{"id":54,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Banikoara","arrond":"Founougo","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","annee":"2024","ff":null,"hg":null,"tot":null,"dp":"","dd":"Novembre 2024","lat":11.26416,"lon":2.43348},{"id":55,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Banikoara","arrond":"Founougo","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","annee":"2024","ff":null,"hg":null,"tot":null,"dp":"","dd":"Novembre 2024","lat":11.29837,"lon":2.48538},{"id":56,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Banikoara","arrond":"Gomparou","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","annee":"2024","ff":362,"hg":516,"tot":878,"dp":"","dd":"Novembre 2024","lat":11.34059,"lon":2.41634},{"id":57,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Banikoara","arrond":"Gomparou","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","annee":"2024","ff":null,"hg":null,"tot":null,"dp":"","dd":"Novembre 2024","lat":11.30306,"lon":2.40787},{"id":58,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Banikoara","arrond":" Kokiborou","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","annee":"2024","ff":234,"hg":261,"tot":495,"dp":"","dd":"Novembre 2024","lat":11.34426,"lon":2.47705},{"id":59,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Banikoara","arrond":" Kokiborou","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","annee":"2024","ff":null,"hg":null,"tot":null,"dp":"","dd":"Octobre 2024","lat":11.28284,"lon":2.45389},{"id":60,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Banikoara","arrond":"Goumori","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","annee":"2024","ff":155,"hg":183,"tot":338,"dp":"","dd":"Octobre  2024","lat":11.3139,"lon":2.40528},{"id":61,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Banikoara","arrond":"Goumori","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","annee":"2024","ff":316,"hg":387,"tot":703,"dp":"","dd":"Octobre 2024","lat":11.32925,"lon":2.44394},{"id":62,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Banikoara","arrond":"Goumori","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","annee":"2024","ff":95,"hg":103,"tot":198,"dp":"","dd":"Octobre 2024","lat":11.33086,"lon":2.44304},{"id":63,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Banikoara","arrond":"Goumori","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","annee":"2024","ff":412,"hg":630,"tot":1042,"dp":"","dd":"Octobre  2024","lat":11.25306,"lon":2.42242},{"id":64,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Banikoara","arrond":"Goumori","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","annee":"2024","ff":null,"hg":null,"tot":null,"dp":"","dd":"Octobre 2024","lat":11.25495,"lon":2.48291},{"id":65,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Kandi","arrond":"Arrondissement 2","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","annee":"2024","ff":664,"hg":813,"tot":1477,"dp":"","dd":"Aout 2024","lat":11.17187,"lon":2.97117},{"id":66,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Kandi","arrond":"Arrondissement 3","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","annee":"2024","ff":67,"hg":71,"tot":138,"dp":"","dd":"Aout 2024","lat":11.11475,"lon":2.89379},{"id":67,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Kandi","arrond":"Donwari","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","annee":"2024","ff":164,"hg":163,"tot":327,"dp":"","dd":"Aout 2024","lat":11.1718,"lon":2.98269},{"id":68,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Kandi","arrond":"Arrondissement 3","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","annee":"2024","ff":530,"hg":887,"tot":1417,"dp":"","dd":"Aout 2024","lat":11.09257,"lon":2.9366},{"id":69,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Kandi","arrond":"Kassakou","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","annee":"2024","ff":301,"hg":324,"tot":625,"dp":"","dd":"Aout 2024","lat":11.09092,"lon":2.96406},{"id":70,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Kandi","arrond":"Sam","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","annee":"2024","ff":192,"hg":333,"tot":525,"dp":"","dd":"Aout 2024","lat":11.16058,"lon":2.90084},{"id":71,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Kandi","arrond":"Sam","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","annee":"2024","ff":null,"hg":null,"tot":null,"dp":"","dd":"Aout 2024","lat":11.13153,"lon":2.94298},{"id":72,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Kandi","arrond":"Angaradebou","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","annee":"2024","ff":189,"hg":272,"tot":461,"dp":"","dd":"Aout 2024","lat":11.11051,"lon":2.97524},{"id":73,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Kandi","arrond":"Angaradebou","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","annee":"2024","ff":null,"hg":null,"tot":null,"dp":"","dd":"Aout 2024","lat":11.12631,"lon":2.90918},{"id":74,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Kandi","arrond":"Arrondissement 3","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","annee":"2024","ff":530,"hg":887,"tot":1417,"dp":"","dd":"Aout 2024","lat":11.13793,"lon":2.96099},{"id":75,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Kandi","arrond":"Arrondissement 3","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","annee":"2024","ff":null,"hg":null,"tot":null,"dp":"","dd":"Aout 2024","lat":11.10412,"lon":2.91917},{"id":76,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Kandi","arrond":"Sonsoro","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","annee":"2024","ff":207,"hg":302,"tot":509,"dp":"","dd":"Aout 2024","lat":11.18351,"lon":2.95299},{"id":77,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Kandi","arrond":"Sonsoro","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","annee":"2024","ff":null,"hg":null,"tot":null,"dp":"","dd":"Aout 2024","lat":11.12781,"lon":2.93976},{"id":78,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Kandi","arrond":"Kassakou","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","annee":"2024","ff":301,"hg":324,"tot":625,"dp":"","dd":"Aout 2024","lat":11.0961,"lon":2.91047},{"id":79,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Kandi","arrond":"Kassakou","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","annee":"2024","ff":null,"hg":null,"tot":null,"dp":"","dd":"Septembre 2024","lat":11.11781,"lon":2.94683},{"id":80,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Kandi","arrond":"Sam","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","annee":"2024","ff":192,"hg":333,"tot":525,"dp":"","dd":"Septembre 2024","lat":11.10701,"lon":2.91002},{"id":81,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Malanville","arrond":"Malanville","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","annee":"2024","ff":342,"hg":326,"tot":668,"dp":"","dd":"Septembre 2024","lat":11.8231,"lon":3.40111},{"id":82,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Malanville","arrond":"Malanville","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","annee":"2024","ff":null,"hg":null,"tot":null,"dp":"","dd":"Septembre 2024","lat":11.83889,"lon":3.42854},{"id":83,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Malanville","arrond":"Malanville","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","annee":"2024","ff":309,"hg":338,"tot":647,"dp":"","dd":"Septembre 2024","lat":11.90196,"lon":3.34509},{"id":84,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Malanville","arrond":"Malanville","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","annee":"2024","ff":null,"hg":null,"tot":null,"dp":"","dd":"Septembre 2024","lat":11.8398,"lon":3.4049},{"id":85,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Malanville","arrond":"Malanville","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","annee":"2024","ff":217,"hg":213,"tot":430,"dp":"","dd":"Septembre 2024","lat":11.83742,"lon":3.35123},{"id":86,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Malanville","arrond":"Malanville","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","annee":"2024","ff":null,"hg":null,"tot":null,"dp":"","dd":"Septembre 2024","lat":11.90955,"lon":3.3951},{"id":87,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Malanville","arrond":"Malanville","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","annee":"2024","ff":139,"hg":209,"tot":348,"dp":"","dd":"Septembre 2024","lat":11.86327,"lon":3.41646},{"id":88,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Malanville","arrond":"Malanville","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","annee":"2024","ff":263,"hg":378,"tot":641,"dp":"","dd":"Septembre 2024","lat":11.89675,"lon":3.35704},{"id":89,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Malanville","arrond":"Malanville","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","annee":"2024","ff":171,"hg":266,"tot":437,"dp":"","dd":"Septembre 2024","lat":11.82569,"lon":3.38111},{"id":90,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Malanville","arrond":"Malanville","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","annee":"2024","ff":null,"hg":null,"tot":null,"dp":"","dd":"Septembre 2024","lat":11.85836,"lon":3.3847},{"id":91,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Malanville","arrond":"Malanville","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","annee":"2024","ff":null,"hg":null,"tot":null,"dp":"","dd":"Septembre 2024","lat":11.88891,"lon":3.40534},{"id":92,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Malanville","arrond":"Malanville","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","annee":"2024","ff":139,"hg":209,"tot":348,"dp":"","dd":"Septembre 2024","lat":11.91442,"lon":3.34784},{"id":93,"type":"PEA","cat":"Eau potable","dept":"Alibori","commune":"Karimama","arrond":"Kompa","village":"Kompa","nature":"Centre de Santé","grant":"Pays-Bas/DGIS","comite":"Oui ","annee":"","ff":null,"hg":null,"tot":null,"dp":"","dd":"","lat":12.05226,"lon":3.15693},{"id":94,"type":"PEA","cat":"Eau potable","dept":"Alibori","commune":"Karimama","arrond":"Bogo-Bogo","village":"Bogo-Bogo","nature":"Centre de Santé","grant":"Pays-Bas/DGIS","comite":"Oui ","annee":"","ff":null,"hg":null,"tot":null,"dp":"","dd":"","lat":12.09817,"lon":3.14787},{"id":95,"type":"PEA","cat":"Eau potable","dept":"Alibori","commune":"Kandi","arrond":"Saah","village":"CS Saah","nature":"Centre de Santé","grant":"Pays-Bas/DGIS","comite":"Oui ","annee":"2024","ff":3079,"hg":219,"tot":3298,"dp":"","dd":"Septembre 2024","lat":11.10302,"lon":2.93286},{"id":96,"type":"PEA","cat":"Eau potable","dept":"Alibori","commune":"Gorgounou","arrond":"Wara","village":"CS wara","nature":"Centre de Santé","grant":"Pays-Bas/DGIS","comite":"Oui ","annee":"2024","ff":3180,"hg":449,"tot":3629,"dp":"","dd":"Septembre 2024","lat":11.39819,"lon":2.89485},{"id":97,"type":"PEA","cat":"Eau potable","dept":"Alibori","commune":"Gorgounou","arrond":"Badou","village":"CS Badou","nature":"Centre de Santé","grant":"Pays-Bas/DGIS","comite":"Oui ","annee":"","ff":null,"hg":null,"tot":null,"dp":"","dd":"","lat":11.38098,"lon":2.95933},{"id":98,"type":"PEA","cat":"Eau potable","dept":"Alibori","commune":"Banikoara","arrond":"Gomparou","village":"CS Gomparou","nature":"Centre de Santé","grant":"Pays-Bas/DGIS","comite":"Oui ","annee":"","ff":null,"hg":null,"tot":null,"dp":"","dd":"","lat":11.29731,"lon":2.47613},{"id":99,"type":"PEA","cat":"Eau potable","dept":"Alibori","commune":"Banikoara","arrond":"Cs Kokey","village":"CS Kokey","nature":"Centre de Santé","grant":"Pays-Bas/DGIS","comite":"Oui ","annee":"2024","ff":3139,"hg":316,"tot":3455,"dp":"","dd":"Sptembre 2024","lat":11.30803,"lon":2.39506},{"id":100,"type":"PEA","cat":"Eau potable","dept":"Alibori","commune":"Ségbana","arrond":"Cs Liboussou","village":"CS Liboussou","nature":"Centre de Santé","grant":"Pays-Bas/DGIS","comite":"Oui ","annee":"","ff":null,"hg":null,"tot":null,"dp":"","dd":"","lat":11.23593,"lon":3.7356},{"id":101,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Covè","arrond":"Agonli Houegbo","village":" DOHOUNME","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Oui ","annee":"","ff":118,"hg":134,"tot":252,"dp":"2023","dd":"","lat":7.2909,"lon":2.43764},{"id":102,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Covè","arrond":"Dovi Dove","village":"EPP DOVI DOVE B","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Oui ","annee":"","ff":131,"hg":155,"tot":286,"dp":"2023","dd":"","lat":7.27887,"lon":2.36163},{"id":103,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Covè","arrond":"Kpedekpo","village":"CEG KPEDEKPO","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Oui ","annee":"","ff":342,"hg":490,"tot":832,"dp":"2023","dd":"","lat":7.24256,"lon":2.36637},{"id":104,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Covè","arrond":"Agongbodji","village":"EPP AGONGBODJI/A","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Oui ","annee":"","ff":152,"hg":188,"tot":340,"dp":"2023","dd":"","lat":7.2341,"lon":2.35086},{"id":105,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Zangnando","arrond":"Agonli Houegbo","village":"CEG AGONLI HOUEGBO ","nature":"Ecole","grant":"Non renseigné","comite":"Oui ","annee":"","ff":181,"hg":254,"tot":435,"dp":"2023","dd":"","lat":7.1759,"lon":2.45153},{"id":106,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Zangnando","arrond":"","village":"EPP DOHOUNME","nature":"Ecole","grant":"Non renseigné","comite":"Oui ","annee":"","ff":118,"hg":134,"tot":252,"dp":"2023","dd":"","lat":7.16452,"lon":2.43141},{"id":107,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Zangnando","arrond":"Dovi Dove","village":"CEG DOVI DOVE","nature":"Ecole","grant":"Non renseigné","comite":"Oui ","annee":"","ff":91,"hg":148,"tot":239,"dp":"2023","dd":"","lat":7.1835,"lon":2.3953},{"id":108,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Zangnando","arrond":"Dovi Dove","village":"EPP DOVI DOVE B","nature":"Ecole","grant":"Non renseigné","comite":"Oui ","annee":"","ff":131,"hg":155,"tot":286,"dp":"2023","dd":"","lat":7.23373,"lon":2.45254},{"id":109,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Zangnando","arrond":"Kpedekpo","village":"CEG KPEDEKPO","nature":"Ecole","grant":"Non renseigné","comite":"Oui ","annee":"","ff":342,"hg":490,"tot":832,"dp":"2023","dd":"","lat":7.19358,"lon":2.42484},{"id":110,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Zangnando","arrond":"Kpedekpo","village":"ZANTAN","nature":"Ecole","grant":"Non renseigné","comite":"Oui ","annee":"","ff":66,"hg":68,"tot":134,"dp":"2023","dd":"","lat":7.15348,"lon":2.38267},{"id":111,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Zangnando","arrond":"Agongbodji","village":"EPP AGONGBODJI/A","nature":"Ecole","grant":"Non renseigné","comite":"Oui ","annee":"","ff":152,"hg":188,"tot":340,"dp":"2023","dd":"","lat":7.23487,"lon":2.41092},{"id":112,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Ouinhi","arrond":"Ganhounme","village":"GANHOUNME","nature":"Ecole","grant":"Non renseigné","comite":"Oui ","annee":"","ff":135,"hg":196,"tot":331,"dp":"2023","dd":"","lat":7.02022,"lon":2.4928},{"id":113,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Ouinhi","arrond":"Oussa","village":"OUSSA","nature":"Ecole","grant":"Non renseigné","comite":"Oui ","annee":"","ff":96,"hg":93,"tot":189,"dp":"2023","dd":"","lat":6.97172,"lon":2.47642},{"id":114,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Ouinhi","arrond":"Bossa /A","village":" BOSSA","nature":"Ecole","grant":"Non renseigné","comite":"Oui ","annee":"","ff":130,"hg":147,"tot":277,"dp":"2023","dd":"","lat":7.01629,"lon":2.50327},{"id":115,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Ouinhi","arrond":"Oussa","village":"EPP OUSSA","nature":"Ecole","grant":"Non renseigné","comite":"Oui ","annee":"","ff":96,"hg":93,"tot":189,"dp":"2023","dd":"","lat":6.98174,"lon":2.51408},{"id":116,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Ouinhi","arrond":"Houanve Louakpa","village":"EPP HOUANVE LOUAKPA","nature":"Ecole","grant":"Non renseigné","comite":"Oui ","annee":"","ff":140,"hg":168,"tot":308,"dp":"2023","dd":"","lat":6.97401,"lon":2.43658},{"id":117,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Cove","arrond":"Houen-Hounso","village":" GANDAHOGON","nature":"Ecole","grant":"Non renseigné","comite":"","annee":"","ff":450,"hg":505,"tot":955,"dp":"2023","dd":"","lat":7.2535,"lon":2.41252},{"id":118,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Cove","arrond":"Houen-Hounso","village":" GANDAHOGON","nature":"Ecole","grant":"Non renseigné","comite":"","annee":"","ff":null,"hg":null,"tot":null,"dp":"2023","dd":"","lat":7.21752,"lon":2.35699},{"id":119,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Cove","arrond":"Houen-Hounso","village":" GANDAHOGON","nature":"Ecole","grant":"Non renseigné","comite":"","annee":"","ff":null,"hg":null,"tot":null,"dp":"2023","dd":"","lat":7.28303,"lon":2.36962},{"id":120,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Cove","arrond":"Houen-Hounso","village":"HOUIN","nature":"Ecole","grant":"Non renseigné","comite":"","annee":"","ff":null,"hg":null,"tot":null,"dp":"2023","dd":"","lat":7.25345,"lon":2.40694},{"id":121,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Cove","arrond":"Houen-Hounso","village":"HOUIN","nature":"Ecole","grant":"Non renseigné","comite":"","annee":"","ff":null,"hg":null,"tot":null,"dp":"2023","dd":"","lat":7.23592,"lon":2.40337},{"id":122,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Cove","arrond":"Naogon","village":"COVE","nature":"Ecole","grant":"Non renseigné","comite":"","annee":"","ff":null,"hg":null,"tot":null,"dp":"2023","dd":"","lat":7.24628,"lon":2.43847},{"id":123,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Cove","arrond":"Naogon","village":"COVE","nature":"Ecole","grant":"Non renseigné","comite":"","annee":"","ff":null,"hg":null,"tot":null,"dp":"2023","dd":"","lat":7.21443,"lon":2.41662},{"id":124,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Cove","arrond":"Naogon","village":"COVE","nature":"Ecole","grant":"Non renseigné","comite":"","annee":"","ff":null,"hg":null,"tot":null,"dp":"2023","dd":"","lat":7.21787,"lon":2.38458},{"id":125,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Cove","arrond":"Naogon","village":"TOKPLEGBE","nature":"Ecole","grant":"Non renseigné","comite":"","annee":"","ff":301,"hg":320,"tot":621,"dp":"2023","dd":"","lat":7.26117,"lon":2.375},{"id":126,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Cove","arrond":"Naogon","village":"TOKPLEGBE","nature":"Ecole","grant":"Non renseigné","comite":"","annee":"","ff":null,"hg":null,"tot":null,"dp":"2023","dd":"","lat":7.22562,"lon":2.42019},{"id":127,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Cove","arrond":"Lainta Cogbe","village":"LAINTA COGBE","nature":"Ecole","grant":"Non renseigné","comite":"","annee":"","ff":176,"hg":202,"tot":378,"dp":"2023","dd":"","lat":7.20125,"lon":2.39083},{"id":128,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Cove","arrond":"Lainta Cogbe","village":"LAINTA COGBE","nature":"Ecole","grant":"Non renseigné","comite":"","annee":"","ff":null,"hg":null,"tot":null,"dp":"2023","dd":"","lat":7.29385,"lon":2.44461},{"id":129,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Cove","arrond":"Soli","village":"SOLI","nature":"Ecole","grant":"Non renseigné","comite":"","annee":"","ff":156,"hg":173,"tot":329,"dp":"2023","dd":"","lat":7.20133,"lon":2.36632},{"id":130,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Cove","arrond":"Zogba","village":"ZOGBA ","nature":"Ecole","grant":"Non renseigné","comite":"","annee":"","ff":175,"hg":161,"tot":336,"dp":"2023","dd":"","lat":7.22052,"lon":2.43833},{"id":131,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Cove","arrond":"Zogba","village":"ZOGBA ","nature":"Ecole","grant":"Non renseigné","comite":"","annee":"","ff":null,"hg":null,"tot":null,"dp":"2023","dd":"","lat":7.28209,"lon":2.43293},{"id":132,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Cove","arrond":"Zogba","village":"ZOGBA ","nature":"Ecole","grant":"Non renseigné","comite":"","annee":"","ff":null,"hg":null,"tot":null,"dp":"2023","dd":"","lat":7.23095,"lon":2.36077},{"id":133,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Zakpota","arrond":"Houngome","village":"AKETEKPA","nature":"Ecole","grant":"Non renseigné","comite":"","annee":"","ff":163,"hg":368,"tot":531,"dp":"2023","dd":"","lat":7.11537,"lon":2.23135},{"id":134,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Zakpota","arrond":"Houngome","village":" GUINKOLI","nature":"Ecole","grant":"Non renseigné","comite":"","annee":"","ff":80,"hg":87,"tot":167,"dp":"2023","dd":"","lat":7.09317,"lon":2.25972},{"id":135,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Zakpota","arrond":"Kpakpame","village":"DRAME-TANDJI","nature":"Ecole","grant":"Non renseigné","comite":"","annee":"","ff":null,"hg":null,"tot":null,"dp":"2023","dd":"","lat":7.0974,"lon":2.16178},{"id":136,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Zakpota","arrond":"Za-Tanta","village":"DOTAN ","nature":"Ecole","grant":"Non renseigné","comite":"","annee":"","ff":null,"hg":null,"tot":null,"dp":"2023","dd":"","lat":7.11371,"lon":2.19094},{"id":137,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Zakpota","arrond":"Za-Tanta","village":"DOTAN ","nature":"Ecole","grant":"Non renseigné","comite":"","annee":"","ff":null,"hg":null,"tot":null,"dp":"2023","dd":"","lat":7.09834,"lon":2.25489},{"id":138,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Zakpota","arrond":"Za-Tanta","village":"ZA-TANTA ","nature":"Ecole","grant":"Non renseigné","comite":"","annee":"","ff":null,"hg":null,"tot":null,"dp":"2023","dd":"","lat":7.04543,"lon":2.17254},{"id":139,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Cove","arrond":"Houeko","village":"COVE-CENTRE","nature":"Ecole","grant":"Non renseigné","comite":"","annee":"","ff":null,"hg":null,"tot":null,"dp":"2023","dd":"","lat":7.2047,"lon":2.40032},{"id":140,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Cove","arrond":"Naogon","village":"COVE-CENTRE","nature":"Ecole","grant":"Non renseigné","comite":"","annee":"","ff":994,"hg":null,"tot":994,"dp":"2023","dd":"","lat":7.22123,"lon":2.40548},{"id":141,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Cove","arrond":"Soli","village":"SOLI","nature":"Ecole","grant":"Non renseigné","comite":"","annee":"","ff":null,"hg":null,"tot":null,"dp":"2023","dd":"","lat":7.26576,"lon":2.36536},{"id":142,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Cove","arrond":"Zogba","village":"ZOGBA ","nature":"Ecole","grant":"Non renseigné","comite":"","annee":"","ff":156,"hg":173,"tot":329,"dp":"2023","dd":"","lat":7.25742,"lon":2.3714},{"id":143,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Zakpota","arrond":"Houngome","village":" HOUNGOME","nature":"Ecole","grant":"Non renseigné","comite":"","annee":"","ff":175,"hg":161,"tot":336,"dp":"2023","dd":"","lat":7.08085,"lon":2.25153},{"id":144,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Zakpota","arrond":"Za-Kpota","village":" DETEKPA","nature":"Ecole","grant":"Non renseigné","comite":"","annee":"","ff":null,"hg":null,"tot":null,"dp":"","dd":"","lat":7.11661,"lon":2.17023},{"id":145,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Abomey","arrond":"Djegbe","village":"GOHO","nature":"Ecole","grant":"Non renseigné","comite":"","annee":"","ff":null,"hg":null,"tot":null,"dp":"","dd":"","lat":7.17436,"lon":1.96867},{"id":146,"type":"","cat":"Autre","dept":"Zou","commune":"Abomey","arrond":"Djegbe","village":"GOHO","nature":"Ecole","grant":"Non renseigné","comite":"","annee":"","ff":null,"hg":null,"tot":null,"dp":"","dd":"","lat":7.13235,"lon":2.01811},{"id":147,"type":"","cat":"Autre","dept":"Zou","commune":"Abomey","arrond":"Detohou","village":"CEG 3 ABOMEY","nature":"Ecole","grant":"Non renseigné","comite":"","annee":"","ff":null,"hg":null,"tot":null,"dp":"","dd":"","lat":7.19571,"lon":1.9672},{"id":148,"type":"","cat":"Autre","dept":"Zou","commune":"Abomey","arrond":"Detohou","village":"CEG 3 ABOMEY","nature":"Ecole","grant":"Non renseigné","comite":"","annee":"","ff":null,"hg":null,"tot":null,"dp":"","dd":"","lat":7.20612,"lon":1.99617},{"id":149,"type":"","cat":"Autre","dept":"Zou","commune":"Abomey","arrond":"Vidole","village":"EPP ADANDOKPODJI","nature":"Ecole","grant":"Non renseigné","comite":"","annee":"","ff":null,"hg":null,"tot":null,"dp":"","dd":"","lat":7.17477,"lon":1.94197},{"id":150,"type":"","cat":"Autre","dept":"Zou","commune":"Abomey","arrond":"Houinli","village":"CEG 2 ABOMEY","nature":"Ecole","grant":"Non renseigné","comite":"","annee":"","ff":null,"hg":null,"tot":null,"dp":"","dd":"","lat":7.13952,"lon":2.02931},{"id":151,"type":"","cat":"Autre","dept":"Zou","commune":"Abomey","arrond":"Houinli","village":"CEG 2 ABOMEY","nature":"Ecole","grant":"Non renseigné","comite":"","annee":"","ff":null,"hg":null,"tot":null,"dp":"","dd":"","lat":7.22239,"lon":1.99556},{"id":152,"type":"","cat":"Autre","dept":"Zou","commune":"Abomey","arrond":"Houinli","village":"CEG 2 ABOMEY","nature":"Ecole","grant":"Non renseigné","comite":"","annee":"","ff":null,"hg":null,"tot":null,"dp":"","dd":"","lat":7.21546,"lon":1.99925},{"id":153,"type":"","cat":"Autre","dept":"Zou","commune":"Bohicon","arrond":"Agongointo","village":"EPP MANABOE A","nature":"Ecole","grant":"Non renseigné","comite":"","annee":"","ff":null,"hg":null,"tot":null,"dp":"","dd":"","lat":7.14081,"lon":2.02974},{"id":154,"type":"","cat":"Autre","dept":"Zou","commune":"Bohicon","arrond":"Agongointo","village":"EPP MANABOE A","nature":"Ecole","grant":"Non renseigné","comite":"","annee":"","ff":null,"hg":null,"tot":null,"dp":"","dd":"","lat":7.15683,"lon":2.1069},{"id":155,"type":"","cat":"Autre","dept":"Zou","commune":"Bohicon","arrond":"Agongointo","village":"EPP MANABOE B","nature":"Ecole","grant":"Non renseigné","comite":"","annee":"","ff":null,"hg":null,"tot":null,"dp":"","dd":"","lat":7.20561,"lon":2.10307},{"id":156,"type":"","cat":"Autre","dept":"Zou","commune":"Bohicon","arrond":"Agongointo","village":"EPP MANABOE B","nature":"Ecole","grant":"Non renseigné","comite":"","annee":"","ff":null,"hg":null,"tot":null,"dp":"","dd":"","lat":7.21589,"lon":2.03801},{"id":157,"type":"","cat":"Autre","dept":"Zou","commune":"Bohicon","arrond":"Bohicon 1","village":"EPP AZALOUGON A","nature":"Ecole","grant":"Non renseigné","comite":"","annee":"","ff":null,"hg":null,"tot":null,"dp":"","dd":"","lat":7.15095,"lon":2.02728},{"id":158,"type":"","cat":"Autre","dept":"Zou","commune":"Bohicon","arrond":"Bohicon 1","village":"EPP AZALOUGON B","nature":"Ecole","grant":"Non renseigné","comite":"","annee":"","ff":null,"hg":null,"tot":null,"dp":"","dd":"","lat":7.20401,"lon":2.10541},{"id":159,"type":"","cat":"Autre","dept":"Zou","commune":"Bohicon","arrond":"Bohicon 1","village":"EPP ZOUNGOUDO ","nature":"Ecole","grant":"Non renseigné","comite":"","annee":"","ff":null,"hg":null,"tot":null,"dp":"","dd":"","lat":7.16664,"lon":2.07907},{"id":160,"type":"","cat":"Autre","dept":"Zou","commune":"Bohicon","arrond":"Bohicon 1","village":"ADODOETA","nature":"Ecole","grant":"Non renseigné","comite":"","annee":"","ff":null,"hg":null,"tot":null,"dp":"","dd":"","lat":7.14146,"lon":2.10999},{"id":161,"type":"","cat":"Autre","dept":"Zou","commune":"Bohicon","arrond":"Bohicon 1","village":"EPP SEHOUEHO ","nature":"Ecole","grant":"Non renseigné","comite":"","annee":"","ff":null,"hg":null,"tot":null,"dp":"","dd":"","lat":7.21246,"lon":2.11462},{"id":162,"type":"","cat":"Autre","dept":"Zou","commune":"Bohicon","arrond":"Bohicon 2","village":"EPP HONMEHO A","nature":"Ecole","grant":"Non renseigné","comite":"","annee":"","ff":2068183,"hg":null,"tot":2068183,"dp":"","dd":"","lat":7.20708,"lon":2.10514}],"table_rows":[{"id":1,"type":"PEA","cat":"Eau potable","dept":"Atacora","commune":"Natitingou","arrond":"Tchoumi-Tchoumi","village":"Wimmou","nature":"Ecole","grant":"Japon","comite":"","ff":"","hg":"","tot":"","dp":"Mai 2024","dd":"","annee":"2024","lat":10.01727,"lon":1.37742},{"id":2,"type":"PEA","cat":"Eau potable","dept":"Atacora","commune":"Natitingou","arrond":"Kouandata","village":"Kouandata","nature":"Centre de Santé","grant":"Japon","comite":"","ff":"","hg":"","tot":"","dp":"Mai 2024","dd":"","annee":"2024","lat":10.01727,"lon":1.38586},{"id":3,"type":"PEA","cat":"Eau potable","dept":"Atacora","commune":"Natitingou","arrond":"Perma","village":"Gnagnanmou","nature":"Ecole","grant":"Japon","comite":"","ff":"","hg":"","tot":"","dp":"Mai 2024","dd":"","annee":"2024","lat":10.19022,"lon":1.53388},{"id":4,"type":"PEA","cat":"Eau potable","dept":"Atacora","commune":"Natitingou","arrond":"Perma","village":"Sinaissire/Kouponco","nature":"Ecole","grant":"Japon","comite":"","ff":"","hg":"","tot":"","dp":"Mai 2024","dd":"","annee":"2024","lat":9.362,"lon":2.62406},{"id":5,"type":"PEA","cat":"Eau potable","dept":"Atacora","commune":"Natitingou","arrond":"Kouandata","village":"Tigninti","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"","ff":"","hg":"","tot":"","dp":"Mai 2024","dd":"","annee":"2024","lat":10.17643,"lon":1.41546},{"id":6,"type":"LATRINE","cat":"Autre","dept":"Atacora","commune":"Natitingou","arrond":"Kouandata","village":"Tigninti","nature":"Ecole groupe A","grant":"Pays-Bas/DGIS","comite":"","ff":116,"hg":128,"tot":244,"dp":"Mai 2024","dd":"","annee":"2024","lat":"","lon":""},{"id":7,"type":"LATRINE","cat":"Autre","dept":"Atacora","commune":"Natitingou","arrond":"Kouandata","village":"Tigninti","nature":"Ecole groupe B","grant":"Pays-Bas/DGIS","comite":"","ff":75,"hg":82,"tot":157,"dp":"Mai 2024","dd":"","annee":"2024","lat":"","lon":""},{"id":8,"type":"LATRINE","cat":"Autre","dept":"Atacora","commune":"Natitingou","arrond":"Natitingou Iii","village":"Yimporima","nature":"Ecole","grant":"Non renseigné","comite":"","ff":132,"hg":125,"tot":257,"dp":"","dd":"","annee":"","lat":"","lon":""},{"id":9,"type":"LATRINE","cat":"Autre","dept":"Atacora","commune":"Natitingou","arrond":"Natitingou Iii","village":"Bérécingou","nature":"Ecole","grant":"Non renseigné","comite":"","ff":247,"hg":208,"tot":455,"dp":"","dd":"","annee":"","lat":"","lon":""},{"id":10,"type":"LATRINE","cat":"Autre","dept":"Atacora","commune":"Natitingou","arrond":"Perma","village":"Sinaissire","nature":"Ecole","grant":"Non renseigné","comite":"","ff":108,"hg":137,"tot":245,"dp":"","dd":"","annee":"","lat":"","lon":""},{"id":11,"type":"LATRINE","cat":"Autre","dept":"Atacora","commune":"Natitingou","arrond":"Perma","village":"Koussigou","nature":"Ecole","grant":"Non renseigné","comite":"","ff":136,"hg":144,"tot":280,"dp":"","dd":"","annee":"","lat":"","lon":""},{"id":12,"type":"LATRINE","cat":"Autre","dept":"Atacora","commune":"Matéri","arrond":"Dassari","village":"Pouri","nature":"Ecole","grant":"Non renseigné","comite":"","ff":208,"hg":310,"tot":518,"dp":"","dd":"","annee":"","lat":"","lon":""},{"id":13,"type":"LATRINE","cat":"Autre","dept":"Atacora","commune":"Matéri","arrond":"Matéri","village":"Matéri Centre","nature":"Ecole","grant":"Non renseigné","comite":"","ff":182,"hg":194,"tot":376,"dp":"","dd":"","annee":"","lat":"","lon":""},{"id":14,"type":"LATRINE","cat":"Autre","dept":"Atacora","commune":"Matéri","arrond":"Nodi","village":"Nodi","nature":"Ecole secondaire","grant":"Non renseigné","comite":"","ff":111,"hg":214,"tot":325,"dp":"","dd":"","annee":"","lat":"","lon":""},{"id":15,"type":"LATRINE","cat":"Autre","dept":"Atacora","commune":"Matéri","arrond":"Dassari","village":"Nagassega ","nature":"Ecole","grant":"Non renseigné","comite":"","ff":204,"hg":242,"tot":446,"dp":"","dd":"","annee":"","lat":"","lon":""},{"id":16,"type":"LATRINE","cat":"Autre","dept":"Atacora","commune":"Matéri","arrond":"Dassari","village":"Tamoussega","nature":"Ecole","grant":"Non renseigné","comite":"","ff":144,"hg":185,"tot":329,"dp":"","dd":"","annee":"","lat":"","lon":""},{"id":17,"type":"LATRINE","cat":"Autre","dept":"Atacora","commune":"Kérou","arrond":"Kérou Centre","village":"Kparatégui","nature":"Place publique","grant":"Non renseigné","comite":"","ff":103,"hg":97,"tot":200,"dp":"Décembre 2023","dd":"","annee":"2023","lat":"","lon":""},{"id":18,"type":"LATRINE","cat":"Autre","dept":"Atacora","commune":"Kérou","arrond":"Firou","village":"Djoléni ","nature":"Dispensaire isolé","grant":"Non renseigné","comite":"","ff":103,"hg":97,"tot":200,"dp":"Décembre 2023","dd":"","annee":"2023","lat":"","lon":""},{"id":19,"type":"LATRINE","cat":"Autre","dept":"Atacora","commune":"Kérou","arrond":"Kérou Centre","village":"","nature":"Centre social","grant":"Non renseigné","comite":"","ff":103,"hg":97,"tot":200,"dp":"Décembre 2023","dd":"","annee":"2023","lat":"","lon":""},{"id":20,"type":"LATRINE","cat":"Autre","dept":"Atacora","commune":"Kérou","arrond":"Kaobagou","village":"","nature":"Place publique","grant":"Non renseigné","comite":"","ff":103,"hg":97,"tot":200,"dp":"Décembre 2023","dd":"","annee":"2023","lat":"","lon":""},{"id":21,"type":"LATRINE","cat":"Autre","dept":"Atacora","commune":"Kérou","arrond":"Kaobagou","village":"","nature":"Place publique","grant":"Non renseigné","comite":"","ff":103,"hg":97,"tot":200,"dp":"Décembre 2023","dd":"","annee":"2023","lat":"","lon":""},{"id":22,"type":"LATRINE","cat":"Autre","dept":"Atacora","commune":"Matéri","arrond":"Gouandé","village":"Doga","nature":"Ecole","grant":"Non renseigné","comite":"","ff":103,"hg":97,"tot":200,"dp":"Décembre 2023","dd":"","annee":"2023","lat":"","lon":""},{"id":23,"type":"LATRINE","cat":"Autre","dept":"Atacora","commune":"Matéri","arrond":"Gouandé","village":"Bahoun","nature":"Place publique","grant":"Non renseigné","comite":"","ff":103,"hg":97,"tot":200,"dp":"Décembre 2023","dd":"","annee":"2023","lat":"","lon":""},{"id":24,"type":"LATRINE","cat":"Autre","dept":"Atacora","commune":"Matéri","arrond":"Gouandé","village":"Sindori","nature":"Place publique","grant":"Non renseigné","comite":"","ff":103,"hg":97,"tot":200,"dp":"Décembre 2023","dd":"","annee":"2023","lat":"","lon":""},{"id":25,"type":"LATRINE","cat":"Autre","dept":"Atacora","commune":"Matéri","arrond":"Tantega","village":"Nambouli","nature":"Place publique","grant":"Non renseigné","comite":"","ff":103,"hg":97,"tot":200,"dp":"Décembre 2023","dd":"","annee":"2023","lat":"","lon":""},{"id":26,"type":"LATRINE","cat":"Autre","dept":"Atacora","commune":"Matéri","arrond":"Dassari","village":"Porga","nature":"Place publique","grant":"Non renseigné","comite":"","ff":103,"hg":97,"tot":200,"dp":"Décembre 2023","dd":"","annee":"2023","lat":"","lon":""},{"id":27,"type":"LATRINE","cat":"Autre","dept":"Atacora","commune":"Tanguieta","arrond":"Tanongou","village":"Batia","nature":"","grant":"Non renseigné","comite":"","ff":103,"hg":97,"tot":200,"dp":"Décembre 2023","dd":"","annee":"2023","lat":"","lon":""},{"id":28,"type":"LATRINE","cat":"Autre","dept":"Atacora","commune":"Tanguieta","arrond":"","village":"Yangou","nature":"","grant":"Non renseigné","comite":"","ff":103,"hg":97,"tot":200,"dp":"Décembre 2023","dd":"","annee":"2023","lat":"","lon":""},{"id":29,"type":"PEA","cat":"Eau potable","dept":"Atacora","commune":"Tanguieta","arrond":"\tN'Dahonta","village":"\tSamongou/Touatouagou","nature":"Ecole","grant":"Japon","comite":"","ff":"","hg":"","tot":"","dp":"Mai 2024","dd":"","annee":"2024","lat":10.52541,"lon":1.08066},{"id":30,"type":"PEA","cat":"Eau potable","dept":"Atacora","commune":"Tanguieta","arrond":"\tN'Dahonta","village":"Tchaéta","nature":"Ecole","grant":"Japon","comite":"","ff":"","hg":"","tot":"","dp":"Mai 2024","dd":"","annee":"2024","lat":10.5113,"lon":1.14517},{"id":31,"type":"PEA","cat":"Eau potable","dept":"Atacora","commune":"Tanguieta","arrond":"Cotiakou","village":"Tanféré","nature":"Ecole","grant":"Japon","comite":"","ff":"","hg":"","tot":"","dp":"Mai 2024","dd":"","annee":"2024","lat":10.59912,"lon":1.33895},{"id":32,"type":"PEA","cat":"Eau potable","dept":"Atacora","commune":"Tanguieta","arrond":"Cotiakou","village":"Pemoubou","nature":"Ecole","grant":"Japon","comite":"","ff":"","hg":"","tot":"","dp":"Mai 2024","dd":"","annee":"2024","lat":10.61069,"lon":1.44757},{"id":33,"type":"PEA","cat":"Eau potable","dept":"Atacora","commune":"Matéri","arrond":"\tGouandé","village":"\tGouandé","nature":"Ecole","grant":"Japon","comite":"","ff":"","hg":"","tot":"","dp":"Mai 2024","dd":"","annee":"2024","lat":10.7474,"lon":0.85094},{"id":34,"type":"PEA","cat":"Eau potable","dept":"Atacora","commune":"Natitingou","arrond":"Natitingou Iii","village":"Yetapo","nature":"Ecole et Centre de Santé","grant":"Corée","comite":"","ff":"","hg":"","tot":"","dp":"août 2024","dd":"","annee":"2024","lat":10.20294,"lon":1.39743},{"id":35,"type":"PEA","cat":"Eau potable","dept":"Atacora","commune":"Matéri","arrond":"Gouandé","village":"Koundou","nature":"Milieu communautaire","grant":"Japon","comite":"","ff":"","hg":"","tot":"","dp":"Juillet 2024","dd":"","annee":"2024","lat":10.78889,"lon":0.91361},{"id":36,"type":"PEA","cat":"Eau potable","dept":"Atacora","commune":"Matéri","arrond":"Tantega","village":"Nambouli/Douaka","nature":"Milieu communautaire","grant":"Japon","comite":"","ff":"","hg":"","tot":"","dp":"Juillet 2024","dd":"","annee":"2024","lat":10.87111,"lon":0.94639},{"id":37,"type":"PEA","cat":"Eau potable","dept":"Atacora","commune":"Matéri","arrond":"Dassari","village":"Sétchindiga/Daga","nature":"Milieu communautaire","grant":"Japon","comite":"","ff":"","hg":"","tot":"","dp":"Juillet 2024","dd":"","annee":"2024","lat":10.95556,"lon":1.03889},{"id":38,"type":"PEA","cat":"Eau potable","dept":"Atacora","commune":"Tanguieta","arrond":"Taiakou","village":"Koutchoutchougou","nature":"Milieu communautaire","grant":"Japon","comite":"","ff":"","hg":"","tot":"","dp":"Juillet 2024","dd":"","annee":"2024","lat":10.72389,"lon":1.33889},{"id":39,"type":"PEA","cat":"Eau potable","dept":"Atacora","commune":"Tanguieta","arrond":"Tanongou","village":"Kayarika","nature":"Milieu communautaire","grant":"Japon","comite":"","ff":"","hg":"","tot":"","dp":"Juillet 2024","dd":"","annee":"2024","lat":11.43444,"lon":1.82306},{"id":40,"type":"FPMH","cat":"Eau potable","dept":"Atacora","commune":"Tanguieta","arrond":"Tanongou","village":"Tchafarga","nature":"Milieu communautaire","grant":"Japon","comite":"","ff":"","hg":"","tot":"","dp":"Octobre 2024","dd":"","annee":"2024","lat":10.84025,"lon":1.45661},{"id":41,"type":"FPMH","cat":"Eau potable","dept":"Atacora","commune":"Tanguieta","arrond":"Taiakou","village":"MATANRGUI/Koumali","nature":"Milieu communautaire","grant":"Japon","comite":"","ff":292,"hg":308,"tot":600,"dp":"Octobre 2024","dd":"","annee":"2024","lat":10.41511,"lon":1.12975},{"id":42,"type":"FPMH","cat":"Eau potable","dept":"Atacora","commune":"Tanguieta","arrond":"Taiakou","village":"Ouankou/Fanri","nature":"Milieu communautaire","grant":"Japon","comite":"","ff":"","hg":"","tot":"","dp":"Octobre 2024","dd":"","annee":"2024","lat":10.49175,"lon":1.17578},{"id":43,"type":"FPMH","cat":"Eau potable","dept":"Atacora","commune":"Tanguieta","arrond":"Cotiakou","village":"Bourpouya","nature":"Milieu communautaire","grant":"Japon","comite":"","ff":"","hg":"","tot":"","dp":"Octobre 2024","dd":"","annee":"2024","lat":"","lon":""},{"id":44,"type":"FPMH","cat":"Eau potable","dept":"Atacora","commune":"Tanguieta","arrond":"N’Dahonta","village":"Dodongou/Tontonkou","nature":"Milieu communautaire","grant":"Japon","comite":"","ff":390,"hg":410,"tot":800,"dp":"Octobre 2024","dd":"","annee":"2024","lat":10.48461,"lon":1.16819},{"id":45,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Banikoara","arrond":"Somperekou","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","ff":254,"hg":279,"tot":533,"dp":"","dd":"Novembre 2024","annee":"2024","lat":11.31054,"lon":2.49206},{"id":46,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Banikoara","arrond":"Somperekou","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","ff":58,"hg":20,"tot":78,"dp":"","dd":"Novembre 2024","annee":"2024","lat":11.23819,"lon":2.52227},{"id":47,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Banikoara","arrond":"Toura","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","ff":428,"hg":528,"tot":956,"dp":"","dd":"Novembre 2024","annee":"2024","lat":2.3872,"lon":2.3872},{"id":48,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Banikoara","arrond":"Toura","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","ff":"","hg":"","tot":"","dp":"","dd":"Novembre 2024","annee":"2024","lat":11.24723,"lon":2.38792},{"id":49,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Banikoara","arrond":"Toura","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","ff":92,"hg":121,"tot":213,"dp":"","dd":"Novembre 2024","annee":"2024","lat":11.2472,"lon":2.38792},{"id":50,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Banikoara","arrond":"Kokiborou","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","ff":234,"hg":261,"tot":495,"dp":"","dd":"Novembre 2024","annee":"2024","lat":11.17899,"lon":2.3038},{"id":51,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Banikoara","arrond":"Goumori","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","ff":176,"hg":227,"tot":403,"dp":"","dd":"Novembre 2024","annee":"2024","lat":"","lon":""},{"id":52,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Banikoara","arrond":"Somperekou","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","ff":257,"hg":279,"tot":536,"dp":"","dd":"Novembre 2024","annee":"2024","lat":11.31061,"lon":2.49218},{"id":53,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Banikoara","arrond":"Founougo","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","ff":364,"hg":728,"tot":1092,"dp":"","dd":"Novembre 2024","annee":"2024","lat":11.48883,"lon":2.53323},{"id":54,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Banikoara","arrond":"Founougo","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","ff":"","hg":"","tot":"","dp":"","dd":"Novembre 2024","annee":"2024","lat":11.48884,"lon":2.5332},{"id":55,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Banikoara","arrond":"Founougo","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","ff":"","hg":"","tot":"","dp":"","dd":"Novembre 2024","annee":"2024","lat":11.48968,"lon":2.53146},{"id":56,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Banikoara","arrond":"Gomparou","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","ff":362,"hg":516,"tot":878,"dp":"","dd":"Novembre 2024","annee":"2024","lat":11.33173,"lon":2.48249},{"id":57,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Banikoara","arrond":"Gomparou","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","ff":"","hg":"","tot":"","dp":"","dd":"Novembre 2024","annee":"2024","lat":11.33178,"lon":2.48253},{"id":58,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Banikoara","arrond":" Kokiborou","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","ff":234,"hg":261,"tot":495,"dp":"","dd":"Novembre 2024","annee":"2024","lat":"","lon":""},{"id":59,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Banikoara","arrond":" Kokiborou","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","ff":"","hg":"","tot":"","dp":"","dd":"Octobre 2024","annee":"2024","lat":"","lon":""},{"id":60,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Banikoara","arrond":"Goumori","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","ff":155,"hg":183,"tot":338,"dp":"","dd":"Octobre  2024","annee":"2024","lat":11.17899,"lon":2.3038},{"id":61,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Banikoara","arrond":"Goumori","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","ff":316,"hg":387,"tot":703,"dp":"","dd":"Octobre 2024","annee":"2024","lat":11.17648,"lon":2.29439},{"id":62,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Banikoara","arrond":"Goumori","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","ff":95,"hg":103,"tot":198,"dp":"","dd":"Octobre 2024","annee":"2024","lat":"","lon":""},{"id":63,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Banikoara","arrond":"Goumori","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","ff":412,"hg":630,"tot":1042,"dp":"","dd":"Octobre  2024","annee":"2024","lat":"","lon":""},{"id":64,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Banikoara","arrond":"Goumori","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","ff":"","hg":"","tot":"","dp":"","dd":"Octobre 2024","annee":"2024","lat":11.18257,"lon":2.30329},{"id":65,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Kandi","arrond":"Arrondissement 2","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","ff":664,"hg":813,"tot":1477,"dp":"","dd":"Aout 2024","annee":"2024","lat":51.9402,"lon":54.08568},{"id":66,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Kandi","arrond":"Arrondissement 3","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","ff":67,"hg":71,"tot":138,"dp":"","dd":"Aout 2024","annee":"2024","lat":"","lon":""},{"id":67,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Kandi","arrond":"Donwari","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","ff":164,"hg":163,"tot":327,"dp":"","dd":"Aout 2024","annee":"2024","lat":"","lon":""},{"id":68,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Kandi","arrond":"Arrondissement 3","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","ff":530,"hg":887,"tot":1417,"dp":"","dd":"Aout 2024","annee":"2024","lat":2.92276,"lon":11.13424},{"id":69,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Kandi","arrond":"Kassakou","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","ff":301,"hg":324,"tot":625,"dp":"","dd":"Aout 2024","annee":"2024","lat":2.89861,"lon":11.06771},{"id":70,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Kandi","arrond":"Sam","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","ff":192,"hg":333,"tot":525,"dp":"","dd":"Aout 2024","annee":"2024","lat":"","lon":""},{"id":71,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Kandi","arrond":"Sam","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","ff":"","hg":"","tot":"","dp":"","dd":"Aout 2024","annee":"2024","lat":"","lon":""},{"id":72,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Kandi","arrond":"Angaradebou","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","ff":189,"hg":272,"tot":461,"dp":"","dd":"Aout 2024","annee":"2024","lat":3.03464,"lon":11.31097},{"id":73,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Kandi","arrond":"Angaradebou","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","ff":"","hg":"","tot":"","dp":"","dd":"Aout 2024","annee":"2024","lat":"","lon":""},{"id":74,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Kandi","arrond":"Arrondissement 3","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","ff":530,"hg":887,"tot":1417,"dp":"","dd":"Aout 2024","annee":"2024","lat":"","lon":""},{"id":75,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Kandi","arrond":"Arrondissement 3","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","ff":"","hg":"","tot":"","dp":"","dd":"Aout 2024","annee":"2024","lat":"","lon":""},{"id":76,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Kandi","arrond":"Sonsoro","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","ff":207,"hg":302,"tot":509,"dp":"","dd":"Aout 2024","annee":"2024","lat":13.75068,"lon":16.94472},{"id":77,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Kandi","arrond":"Sonsoro","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","ff":"","hg":"","tot":"","dp":"","dd":"Aout 2024","annee":"2024","lat":13.99152,"lon":17.0394},{"id":78,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Kandi","arrond":"Kassakou","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","ff":301,"hg":324,"tot":625,"dp":"","dd":"Aout 2024","annee":"2024","lat":"","lon":""},{"id":79,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Kandi","arrond":"Kassakou","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","ff":"","hg":"","tot":"","dp":"","dd":"Septembre 2024","annee":"2024","lat":"","lon":""},{"id":80,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Kandi","arrond":"Sam","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","ff":192,"hg":333,"tot":525,"dp":"","dd":"Septembre 2024","annee":"2024","lat":"","lon":""},{"id":81,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Malanville","arrond":"Malanville","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","ff":342,"hg":326,"tot":668,"dp":"","dd":"Septembre 2024","annee":"2024","lat":"","lon":""},{"id":82,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Malanville","arrond":"Malanville","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","ff":"","hg":"","tot":"","dp":"","dd":"Septembre 2024","annee":"2024","lat":"","lon":""},{"id":83,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Malanville","arrond":"Malanville","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","ff":309,"hg":338,"tot":647,"dp":"","dd":"Septembre 2024","annee":"2024","lat":"","lon":""},{"id":84,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Malanville","arrond":"Malanville","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","ff":"","hg":"","tot":"","dp":"","dd":"Septembre 2024","annee":"2024","lat":"","lon":""},{"id":85,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Malanville","arrond":"Malanville","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","ff":217,"hg":213,"tot":430,"dp":"","dd":"Septembre 2024","annee":"2024","lat":"","lon":""},{"id":86,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Malanville","arrond":"Malanville","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","ff":"","hg":"","tot":"","dp":"","dd":"Septembre 2024","annee":"2024","lat":"","lon":""},{"id":87,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Malanville","arrond":"Malanville","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","ff":139,"hg":209,"tot":348,"dp":"","dd":"Septembre 2024","annee":"2024","lat":"","lon":""},{"id":88,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Malanville","arrond":"Malanville","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","ff":263,"hg":378,"tot":641,"dp":"","dd":"Septembre 2024","annee":"2024","lat":"","lon":""},{"id":89,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Malanville","arrond":"Malanville","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","ff":171,"hg":266,"tot":437,"dp":"","dd":"Septembre 2024","annee":"2024","lat":"","lon":""},{"id":90,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Malanville","arrond":"Malanville","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","ff":"","hg":"","tot":"","dp":"","dd":"Septembre 2024","annee":"2024","lat":"","lon":""},{"id":91,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Malanville","arrond":"Malanville","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","ff":"","hg":"","tot":"","dp":"","dd":"Septembre 2024","annee":"2024","lat":"","lon":""},{"id":92,"type":"LATRINE","cat":"Autre","dept":"Alibori","commune":"Malanville","arrond":"Malanville","village":"","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Non","ff":139,"hg":209,"tot":348,"dp":"","dd":"Septembre 2024","annee":"2024","lat":"","lon":""},{"id":93,"type":"PEA","cat":"Eau potable","dept":"Alibori","commune":"Karimama","arrond":"Kompa","village":"Kompa","nature":"Centre de Santé","grant":"Pays-Bas/DGIS","comite":"Oui ","ff":"","hg":"","tot":"","dp":"","dd":"","annee":"","lat":"","lon":""},{"id":94,"type":"PEA","cat":"Eau potable","dept":"Alibori","commune":"Karimama","arrond":"Bogo-Bogo","village":"Bogo-Bogo","nature":"Centre de Santé","grant":"Pays-Bas/DGIS","comite":"Oui ","ff":"","hg":"","tot":"","dp":"","dd":"","annee":"","lat":"","lon":""},{"id":95,"type":"PEA","cat":"Eau potable","dept":"Alibori","commune":"Kandi","arrond":"Saah","village":"CS Saah","nature":"Centre de Santé","grant":"Pays-Bas/DGIS","comite":"Oui ","ff":3079,"hg":219,"tot":3298,"dp":"","dd":"Septembre 2024","annee":"2024","lat":11.17306,"lon":3.06361},{"id":96,"type":"PEA","cat":"Eau potable","dept":"Alibori","commune":"Gorgounou","arrond":"Wara","village":"CS wara","nature":"Centre de Santé","grant":"Pays-Bas/DGIS","comite":"Oui ","ff":3180,"hg":449,"tot":3629,"dp":"","dd":"Septembre 2024","annee":"2024","lat":11.38028,"lon":2.52361},{"id":97,"type":"PEA","cat":"Eau potable","dept":"Alibori","commune":"Gorgounou","arrond":"Badou","village":"CS Badou","nature":"Centre de Santé","grant":"Pays-Bas/DGIS","comite":"Oui ","ff":"","hg":"","tot":"","dp":"","dd":"","annee":"","lat":"","lon":""},{"id":98,"type":"PEA","cat":"Eau potable","dept":"Alibori","commune":"Banikoara","arrond":"Gomparou","village":"CS Gomparou","nature":"Centre de Santé","grant":"Pays-Bas/DGIS","comite":"Oui ","ff":"","hg":"","tot":"","dp":"","dd":"","annee":"","lat":"","lon":""},{"id":99,"type":"PEA","cat":"Eau potable","dept":"Alibori","commune":"Banikoara","arrond":"Cs Kokey","village":"CS Kokey","nature":"Centre de Santé","grant":"Pays-Bas/DGIS","comite":"Oui ","ff":3139,"hg":316,"tot":3455,"dp":"","dd":"Sptembre 2024","annee":"2024","lat":11.38028,"lon":2.52361},{"id":100,"type":"PEA","cat":"Eau potable","dept":"Alibori","commune":"Ségbana","arrond":"Cs Liboussou","village":"CS Liboussou","nature":"Centre de Santé","grant":"Pays-Bas/DGIS","comite":"Oui ","ff":"","hg":"","tot":"","dp":"","dd":"","annee":"","lat":"","lon":""},{"id":101,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Covè","arrond":"Agonli Houegbo","village":" DOHOUNME","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Oui ","ff":118,"hg":134,"tot":252,"dp":"2023","dd":"","annee":"","lat":7.17562,"lon":2.40371},{"id":102,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Covè","arrond":"Dovi Dove","village":"EPP DOVI DOVE B","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Oui ","ff":131,"hg":155,"tot":286,"dp":"2023","dd":"","annee":"","lat":7.17562,"lon":2.38746},{"id":103,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Covè","arrond":"Kpedekpo","village":"CEG KPEDEKPO","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Oui ","ff":342,"hg":490,"tot":832,"dp":"2023","dd":"","annee":"","lat":7.24629,"lon":2.4965},{"id":104,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Covè","arrond":"Agongbodji","village":"EPP AGONGBODJI/A","nature":"Ecole","grant":"Pays-Bas/DGIS","comite":"Oui ","ff":152,"hg":188,"tot":340,"dp":"2023","dd":"","annee":"","lat":7.23089,"lon":2.50283},{"id":105,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Zangnando","arrond":"Agonli Houegbo","village":"CEG AGONLI HOUEGBO ","nature":"Ecole","grant":"Non renseigné","comite":"Oui ","ff":181,"hg":254,"tot":435,"dp":"2023","dd":"","annee":"","lat":7.2308,"lon":2.40673},{"id":106,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Zangnando","arrond":"","village":"EPP DOHOUNME","nature":"Ecole","grant":"Non renseigné","comite":"Oui ","ff":118,"hg":134,"tot":252,"dp":"2023","dd":"","annee":"","lat":7.22661,"lon":2.40371},{"id":107,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Zangnando","arrond":"Dovi Dove","village":"CEG DOVI DOVE","nature":"Ecole","grant":"Non renseigné","comite":"Oui ","ff":91,"hg":148,"tot":239,"dp":"2023","dd":"","annee":"","lat":7.18247,"lon":2.38297},{"id":108,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Zangnando","arrond":"Dovi Dove","village":"EPP DOVI DOVE B","nature":"Ecole","grant":"Non renseigné","comite":"Oui ","ff":131,"hg":155,"tot":286,"dp":"2023","dd":"","annee":"","lat":7.17562,"lon":2.38746},{"id":109,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Zangnando","arrond":"Kpedekpo","village":"CEG KPEDEKPO","nature":"Ecole","grant":"Non renseigné","comite":"Oui ","ff":342,"hg":490,"tot":832,"dp":"2023","dd":"","annee":"","lat":7.24629,"lon":2.4965},{"id":110,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Zangnando","arrond":"Kpedekpo","village":"ZANTAN","nature":"Ecole","grant":"Non renseigné","comite":"Oui ","ff":66,"hg":68,"tot":134,"dp":"2023","dd":"","annee":"","lat":7.2418,"lon":2.5005},{"id":111,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Zangnando","arrond":"Agongbodji","village":"EPP AGONGBODJI/A","nature":"Ecole","grant":"Non renseigné","comite":"Oui ","ff":152,"hg":188,"tot":340,"dp":"2023","dd":"","annee":"","lat":7.23089,"lon":2.50283},{"id":112,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Ouinhi","arrond":"Ganhounme","village":"GANHOUNME","nature":"Ecole","grant":"Non renseigné","comite":"Oui ","ff":135,"hg":196,"tot":331,"dp":"2023","dd":"","annee":"","lat":7.14395,"lon":2.51102},{"id":113,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Ouinhi","arrond":"Oussa","village":"OUSSA","nature":"Ecole","grant":"Non renseigné","comite":"Oui ","ff":96,"hg":93,"tot":189,"dp":"2023","dd":"","annee":"","lat":7.03795,"lon":2.4529},{"id":114,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Ouinhi","arrond":"Bossa /A","village":" BOSSA","nature":"Ecole","grant":"Non renseigné","comite":"Oui ","ff":130,"hg":147,"tot":277,"dp":"2023","dd":"","annee":"","lat":6.99949,"lon":2.465},{"id":115,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Ouinhi","arrond":"Oussa","village":"EPP OUSSA","nature":"Ecole","grant":"Non renseigné","comite":"Oui ","ff":96,"hg":93,"tot":189,"dp":"2023","dd":"","annee":"","lat":7.03795,"lon":2.4529},{"id":116,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Ouinhi","arrond":"Houanve Louakpa","village":"EPP HOUANVE LOUAKPA","nature":"Ecole","grant":"Non renseigné","comite":"Oui ","ff":140,"hg":168,"tot":308,"dp":"2023","dd":"","annee":"","lat":7.02169,"lon":2.48215},{"id":117,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Cove","arrond":"Houen-Hounso","village":" GANDAHOGON","nature":"Ecole","grant":"Non renseigné","comite":"","ff":450,"hg":505,"tot":955,"dp":"2023","dd":"","annee":"","lat":"","lon":""},{"id":118,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Cove","arrond":"Houen-Hounso","village":" GANDAHOGON","nature":"Ecole","grant":"Non renseigné","comite":"","ff":"","hg":"","tot":"","dp":"2023","dd":"","annee":"","lat":"","lon":""},{"id":119,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Cove","arrond":"Houen-Hounso","village":" GANDAHOGON","nature":"Ecole","grant":"Non renseigné","comite":"","ff":"","hg":"","tot":"","dp":"2023","dd":"","annee":"","lat":"","lon":""},{"id":120,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Cove","arrond":"Houen-Hounso","village":"HOUIN","nature":"Ecole","grant":"Non renseigné","comite":"","ff":"","hg":"","tot":"","dp":"2023","dd":"","annee":"","lat":"","lon":""},{"id":121,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Cove","arrond":"Houen-Hounso","village":"HOUIN","nature":"Ecole","grant":"Non renseigné","comite":"","ff":"","hg":"","tot":"","dp":"2023","dd":"","annee":"","lat":"","lon":""},{"id":122,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Cove","arrond":"Naogon","village":"COVE","nature":"Ecole","grant":"Non renseigné","comite":"","ff":"","hg":"","tot":"","dp":"2023","dd":"","annee":"","lat":"","lon":""},{"id":123,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Cove","arrond":"Naogon","village":"COVE","nature":"Ecole","grant":"Non renseigné","comite":"","ff":"","hg":"","tot":"","dp":"2023","dd":"","annee":"","lat":"","lon":""},{"id":124,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Cove","arrond":"Naogon","village":"COVE","nature":"Ecole","grant":"Non renseigné","comite":"","ff":"","hg":"","tot":"","dp":"2023","dd":"","annee":"","lat":"","lon":""},{"id":125,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Cove","arrond":"Naogon","village":"TOKPLEGBE","nature":"Ecole","grant":"Non renseigné","comite":"","ff":301,"hg":320,"tot":621,"dp":"2023","dd":"","annee":"","lat":"","lon":""},{"id":126,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Cove","arrond":"Naogon","village":"TOKPLEGBE","nature":"Ecole","grant":"Non renseigné","comite":"","ff":"","hg":"","tot":"","dp":"2023","dd":"","annee":"","lat":"","lon":""},{"id":127,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Cove","arrond":"Lainta Cogbe","village":"LAINTA COGBE","nature":"Ecole","grant":"Non renseigné","comite":"","ff":176,"hg":202,"tot":378,"dp":"2023","dd":"","annee":"","lat":"","lon":""},{"id":128,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Cove","arrond":"Lainta Cogbe","village":"LAINTA COGBE","nature":"Ecole","grant":"Non renseigné","comite":"","ff":"","hg":"","tot":"","dp":"2023","dd":"","annee":"","lat":"","lon":""},{"id":129,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Cove","arrond":"Soli","village":"SOLI","nature":"Ecole","grant":"Non renseigné","comite":"","ff":156,"hg":173,"tot":329,"dp":"2023","dd":"","annee":"","lat":"","lon":""},{"id":130,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Cove","arrond":"Zogba","village":"ZOGBA ","nature":"Ecole","grant":"Non renseigné","comite":"","ff":175,"hg":161,"tot":336,"dp":"2023","dd":"","annee":"","lat":"","lon":""},{"id":131,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Cove","arrond":"Zogba","village":"ZOGBA ","nature":"Ecole","grant":"Non renseigné","comite":"","ff":"","hg":"","tot":"","dp":"2023","dd":"","annee":"","lat":"","lon":""},{"id":132,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Cove","arrond":"Zogba","village":"ZOGBA ","nature":"Ecole","grant":"Non renseigné","comite":"","ff":"","hg":"","tot":"","dp":"2023","dd":"","annee":"","lat":"","lon":""},{"id":133,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Zakpota","arrond":"Houngome","village":"AKETEKPA","nature":"Ecole","grant":"Non renseigné","comite":"","ff":163,"hg":368,"tot":531,"dp":"2023","dd":"","annee":"","lat":"","lon":""},{"id":134,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Zakpota","arrond":"Houngome","village":" GUINKOLI","nature":"Ecole","grant":"Non renseigné","comite":"","ff":80,"hg":87,"tot":167,"dp":"2023","dd":"","annee":"","lat":"","lon":""},{"id":135,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Zakpota","arrond":"Kpakpame","village":"DRAME-TANDJI","nature":"Ecole","grant":"Non renseigné","comite":"","ff":"","hg":"","tot":"","dp":"2023","dd":"","annee":"","lat":"","lon":""},{"id":136,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Zakpota","arrond":"Za-Tanta","village":"DOTAN ","nature":"Ecole","grant":"Non renseigné","comite":"","ff":"","hg":"","tot":"","dp":"2023","dd":"","annee":"","lat":"","lon":""},{"id":137,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Zakpota","arrond":"Za-Tanta","village":"DOTAN ","nature":"Ecole","grant":"Non renseigné","comite":"","ff":"","hg":"","tot":"","dp":"2023","dd":"","annee":"","lat":"","lon":""},{"id":138,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Zakpota","arrond":"Za-Tanta","village":"ZA-TANTA ","nature":"Ecole","grant":"Non renseigné","comite":"","ff":"","hg":"","tot":"","dp":"2023","dd":"","annee":"","lat":"","lon":""},{"id":139,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Cove","arrond":"Houeko","village":"COVE-CENTRE","nature":"Ecole","grant":"Non renseigné","comite":"","ff":"","hg":"","tot":"","dp":"2023","dd":"","annee":"","lat":"","lon":""},{"id":140,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Cove","arrond":"Naogon","village":"COVE-CENTRE","nature":"Ecole","grant":"Non renseigné","comite":"","ff":994,"hg":"","tot":994,"dp":"2023","dd":"","annee":"","lat":"","lon":""},{"id":141,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Cove","arrond":"Soli","village":"SOLI","nature":"Ecole","grant":"Non renseigné","comite":"","ff":"","hg":"","tot":"","dp":"2023","dd":"","annee":"","lat":"","lon":""},{"id":142,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Cove","arrond":"Zogba","village":"ZOGBA ","nature":"Ecole","grant":"Non renseigné","comite":"","ff":156,"hg":173,"tot":329,"dp":"2023","dd":"","annee":"","lat":"","lon":""},{"id":143,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Zakpota","arrond":"Houngome","village":" HOUNGOME","nature":"Ecole","grant":"Non renseigné","comite":"","ff":175,"hg":161,"tot":336,"dp":"2023","dd":"","annee":"","lat":"","lon":""},{"id":144,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Zakpota","arrond":"Za-Kpota","village":" DETEKPA","nature":"Ecole","grant":"Non renseigné","comite":"","ff":"","hg":"","tot":"","dp":"","dd":"","annee":"","lat":"","lon":""},{"id":145,"type":"LATRINE","cat":"Autre","dept":"Zou","commune":"Abomey","arrond":"Djegbe","village":"GOHO","nature":"Ecole","grant":"Non renseigné","comite":"","ff":"","hg":"","tot":"","dp":"","dd":"","annee":"","lat":"","lon":""},{"id":146,"type":"","cat":"Autre","dept":"Zou","commune":"Abomey","arrond":"Djegbe","village":"GOHO","nature":"Ecole","grant":"Non renseigné","comite":"","ff":"","hg":"","tot":"","dp":"","dd":"","annee":"","lat":"","lon":""},{"id":147,"type":"","cat":"Autre","dept":"Zou","commune":"Abomey","arrond":"Detohou","village":"CEG 3 ABOMEY","nature":"Ecole","grant":"Non renseigné","comite":"","ff":"","hg":"","tot":"","dp":"","dd":"","annee":"","lat":"","lon":""},{"id":148,"type":"","cat":"Autre","dept":"Zou","commune":"Abomey","arrond":"Detohou","village":"CEG 3 ABOMEY","nature":"Ecole","grant":"Non renseigné","comite":"","ff":"","hg":"","tot":"","dp":"","dd":"","annee":"","lat":"","lon":""},{"id":149,"type":"","cat":"Autre","dept":"Zou","commune":"Abomey","arrond":"Vidole","village":"EPP ADANDOKPODJI","nature":"Ecole","grant":"Non renseigné","comite":"","ff":"","hg":"","tot":"","dp":"","dd":"","annee":"","lat":"","lon":""},{"id":150,"type":"","cat":"Autre","dept":"Zou","commune":"Abomey","arrond":"Houinli","village":"CEG 2 ABOMEY","nature":"Ecole","grant":"Non renseigné","comite":"","ff":"","hg":"","tot":"","dp":"","dd":"","annee":"","lat":"","lon":""},{"id":151,"type":"","cat":"Autre","dept":"Zou","commune":"Abomey","arrond":"Houinli","village":"CEG 2 ABOMEY","nature":"Ecole","grant":"Non renseigné","comite":"","ff":"","hg":"","tot":"","dp":"","dd":"","annee":"","lat":"","lon":""},{"id":152,"type":"","cat":"Autre","dept":"Zou","commune":"Abomey","arrond":"Houinli","village":"CEG 2 ABOMEY","nature":"Ecole","grant":"Non renseigné","comite":"","ff":"","hg":"","tot":"","dp":"","dd":"","annee":"","lat":"","lon":""},{"id":153,"type":"","cat":"Autre","dept":"Zou","commune":"Bohicon","arrond":"Agongointo","village":"EPP MANABOE A","nature":"Ecole","grant":"Non renseigné","comite":"","ff":"","hg":"","tot":"","dp":"","dd":"","annee":"","lat":"","lon":""},{"id":154,"type":"","cat":"Autre","dept":"Zou","commune":"Bohicon","arrond":"Agongointo","village":"EPP MANABOE A","nature":"Ecole","grant":"Non renseigné","comite":"","ff":"","hg":"","tot":"","dp":"","dd":"","annee":"","lat":"","lon":""},{"id":155,"type":"","cat":"Autre","dept":"Zou","commune":"Bohicon","arrond":"Agongointo","village":"EPP MANABOE B","nature":"Ecole","grant":"Non renseigné","comite":"","ff":"","hg":"","tot":"","dp":"","dd":"","annee":"","lat":"","lon":""},{"id":156,"type":"","cat":"Autre","dept":"Zou","commune":"Bohicon","arrond":"Agongointo","village":"EPP MANABOE B","nature":"Ecole","grant":"Non renseigné","comite":"","ff":"","hg":"","tot":"","dp":"","dd":"","annee":"","lat":"","lon":""},{"id":157,"type":"","cat":"Autre","dept":"Zou","commune":"Bohicon","arrond":"Bohicon 1","village":"EPP AZALOUGON A","nature":"Ecole","grant":"Non renseigné","comite":"","ff":"","hg":"","tot":"","dp":"","dd":"","annee":"","lat":"","lon":""},{"id":158,"type":"","cat":"Autre","dept":"Zou","commune":"Bohicon","arrond":"Bohicon 1","village":"EPP AZALOUGON B","nature":"Ecole","grant":"Non renseigné","comite":"","ff":"","hg":"","tot":"","dp":"","dd":"","annee":"","lat":"","lon":""},{"id":159,"type":"","cat":"Autre","dept":"Zou","commune":"Bohicon","arrond":"Bohicon 1","village":"EPP ZOUNGOUDO ","nature":"Ecole","grant":"Non renseigné","comite":"","ff":"","hg":"","tot":"","dp":"","dd":"","annee":"","lat":"","lon":""},{"id":160,"type":"","cat":"Autre","dept":"Zou","commune":"Bohicon","arrond":"Bohicon 1","village":"ADODOETA","nature":"Ecole","grant":"Non renseigné","comite":"","ff":"","hg":"","tot":"","dp":"","dd":"","annee":"","lat":"","lon":""},{"id":161,"type":"","cat":"Autre","dept":"Zou","commune":"Bohicon","arrond":"Bohicon 1","village":"EPP SEHOUEHO ","nature":"Ecole","grant":"Non renseigné","comite":"","ff":"","hg":"","tot":"","dp":"","dd":"","annee":"","lat":"","lon":""},{"id":162,"type":"","cat":"Autre","dept":"Zou","commune":"Bohicon","arrond":"Bohicon 2","village":"EPP HONMEHO A","nature":"Ecole","grant":"Non renseigné","comite":"","ff":2068183,"hg":"","tot":2068183,"dp":"","dd":"","annee":"","lat":"","lon":""},{"id":163,"type":"","cat":"Autre","dept":"","commune":"","arrond":"","village":"","nature":"","grant":"Non renseigné","comite":"","ff":2052889,"hg":"","tot":2052889,"dp":"","dd":"","annee":"","lat":"","lon":""}],"completude":{"Type d'ouvrage":89,"Département":99,"Commune":99,"Arrondissement":98,"Village":68,"Nature du lieu":98,"Grant/Financement":51,"Comité gestion":44,"Femmes/Filles":54,"Hommes/Garçons":52,"Date réception":48,"Coordonnées GPS":37},"hm_types":["Latrine","PEA","FPMH"],"hm_natures":["École","Milieu communautaire","Centre de santé","Centre social"],"hm_data":{"Latrine":{"École":0,"Milieu communautaire":0,"Centre de santé":0,"Centre social":0},"PEA":{"École":0,"Milieu communautaire":5,"Centre de santé":0,"Centre social":0},"FPMH":{"École":0,"Milieu communautaire":5,"Centre de santé":0,"Centre social":0}}};
+
+// ═══════════════════════════════════════════
+// PALETTE UNICEF
+// ═══════════════════════════════════════════
+const UC={navy:'#374EA2',blue:'#00AEEF',dblue:'#1CABE2',green:'#80BD41',orange:'#F26A21',red:'#E2231A',gray:'#6D6E71',light:'#D9F0F9'};
+const TYPE_COL  ={Latrine:UC.navy,PEA:UC.blue,FPMH:UC.green,Douche:UC.orange};
+const DEPT_COL  ={Atacora:UC.navy,Alibori:UC.dblue,Zou:UC.green};
+const NATURE_COL={'École':UC.navy,'Milieu communautaire':UC.dblue,'Centre de santé':UC.green,'Centre social':UC.orange};
+const GRANT_COL ={'Pays-Bas/DGIS':UC.navy,'Japon':UC.blue,'Corée':UC.green,'À compléter':UC.orange,'Non renseigné':UC.gray};
+const TYPE_ICO  ={Latrine:'🚽',PEA:'💧',FPMH:'⚙️',Douche:'🚿'};
+
+// ═══════════════════════════════════════════
+// ÉTAT GLOBAL
+// ═══════════════════════════════════════════
+let filteredData=[...D.table_rows], filteredMap=[...D.map_points];
+let sidebarOpen=true, sortCol=-1, sortDir=1;
+let charts={}, map, layers={}, currentLayer, markerGroup;
+
+// ═══════════════════════════════════════════
+// SIDEBAR
+// ═══════════════════════════════════════════
+function toggleSidebar(){
+  sidebarOpen=!sidebarOpen;
+  document.getElementById('sidebar').classList.toggle('hidden',!sidebarOpen);
+  setTimeout(()=>map&&map.invalidateSize(),300);
+}
+
+// ═══════════════════════════════════════════
+// TABS
+// ═══════════════════════════════════════════
+function showTab(name,btn){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  btn.classList.add('active');
+  if(name==='map')      setTimeout(()=>{map&&map.invalidateSize();updateMapMarkers();},60);
+  if(name==='analyses') setTimeout(initAnalysisCharts,60);
+  if(name==='quality')  setTimeout(renderQuality,60);
+  if(name==='data')     renderTable();
+}
+
+// ═══════════════════════════════════════════
+// FILTRES
+// ═══════════════════════════════════════════
+function getF(){
+  return{
+    cat:   document.getElementById('f_cat').value,
+    type:  document.getElementById('f_type').value,
+    dept:  document.getElementById('f_dept').value,
+    grant: document.getElementById('f_grant').value,
+    annee: document.getElementById('f_annee').value,
+    nature:document.getElementById('f_nature').value,
+  };
+}
+function matchF(r,f){
+  if(f.cat    && r.cat    !==f.cat)    return false;
+  if(f.type   && r.type   !==f.type)   return false;
+  if(f.dept   && r.dept   !==f.dept)   return false;
+  if(f.grant  && r.grant  !==f.grant)  return false;
+  if(f.annee  && String(r.annee)!==f.annee) return false;
+  if(f.nature && r.nature !==f.nature) return false;
+  return true;
+}
+function applyFilters(){
+  const f=getF();
+  filteredData=D.table_rows.filter(r=>matchF(r,f));
+  filteredMap =D.map_points.filter(r=>matchF(r,f));
+  updateKPIs(); updateOverviewCharts(); updateMapMarkers(); renderTable();
+}
+function resetFilters(){
+  ['f_cat','f_type','f_dept','f_grant','f_annee','f_nature'].forEach(id=>document.getElementById(id).value='');
+  applyFilters();
+}
+
+// ═══════════════════════════════════════════
+// KPI
+// ═══════════════════════════════════════════
+function updateKPIs(){
+  const fd=filteredData;
+  const tot=fd.length, lat=fd.filter(r=>r.type==='Latrine').length;
+  const pea=fd.filter(r=>r.type==='PEA').length, fpmh=fd.filter(r=>r.type==='FPMH').length;
+  const benef=fd.reduce((s,r)=>s+(r.tot||0),0);
+  document.getElementById('kv-total').textContent=tot;
+  document.getElementById('kv-lat').textContent=lat;
+  document.getElementById('kv-pea').textContent=pea;
+  document.getElementById('kv-fpmh').textContent=fpmh;
+  document.getElementById('kv-benef').textContent=benef>=1000?'~'+Math.round(benef/1000)+'K':benef;
+  document.getElementById('kv-sites').textContent=filteredMap.length;
+}
+
+// ═══════════════════════════════════════════
+// CHARTS HELPER
+// ═══════════════════════════════════════════
+function mkC(id,cfg){
+  if(charts[id])charts[id].destroy();
+  const ctx=document.getElementById(id);
+  if(!ctx)return;
+  charts[id]=new Chart(ctx,cfg);
+}
+const base={responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{font:{family:'Arial',size:11},boxWidth:14}}}};
+function countBy(arr,k){const r={};arr.forEach(d=>{const v=d[k]||'';r[v]=(r[v]||0)+1;});return r;}
+
+// ═══════════════════════════════════════════
+// OVERVIEW CHARTS
+// ═══════════════════════════════════════════
+function updateOverviewCharts(){
+  const fd=filteredData;
+
+  // Type donut
+  const tc=countBy(fd,'type');
+  mkC('ch-type',{type:'doughnut',data:{
+    labels:Object.keys(tc),
+    datasets:[{data:Object.values(tc),backgroundColor:Object.keys(tc).map(t=>TYPE_COL[t]||UC.gray),borderColor:'white',borderWidth:3}]
+  },options:{...base,cutout:'42%',plugins:{...base.plugins,legend:{position:'bottom',labels:{font:{family:'Arial',size:11},boxWidth:14}}}}});
+
+  // Dept bar
+  const dc=countBy(fd,'dept');
+  const depts=Object.entries(dc).filter(([k])=>k).sort((a,b)=>a[1]-b[1]);
+  mkC('ch-dept',{type:'bar',data:{
+    labels:depts.map(d=>d[0]),
+    datasets:[{data:depts.map(d=>d[1]),backgroundColor:depts.map(d=>DEPT_COL[d[0]]||UC.gray),borderColor:'white',borderWidth:1,borderRadius:5}]
+  },options:{...base,indexAxis:'y',plugins:{...base.plugins,legend:{display:false}},scales:{x:{grid:{color:'#DDE8F0'}},y:{grid:{display:false}}}}});
+
+  // Year stacked
+  const yrs={};
+  fd.forEach(r=>{if(!r.annee)return;if(!yrs[r.annee])yrs[r.annee]={Latrine:0,PEA:0,FPMH:0};yrs[r.annee][r.type]=(yrs[r.annee][r.type]||0)+1;});
+  const yl=Object.keys(yrs).sort();
+  mkC('ch-year',{type:'bar',data:{labels:yl,datasets:[
+    {label:'Latrine',data:yl.map(y=>yrs[y]?.Latrine||0),backgroundColor:UC.navy,borderRadius:3},
+    {label:'PEA',    data:yl.map(y=>yrs[y]?.PEA||0),    backgroundColor:UC.blue,borderRadius:3},
+    {label:'FPMH',   data:yl.map(y=>yrs[y]?.FPMH||0),   backgroundColor:UC.green,borderRadius:3},
+  ]},options:{...base,scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,grid:{color:'#DDE8F0'}}}}});
+
+  // Nature bar
+  const nc=countBy(fd.filter(r=>r.nature),'nature');
+  const nats=Object.entries(nc).sort((a,b)=>b[1]-a[1]);
+  mkC('ch-nature',{type:'bar',data:{
+    labels:nats.map(n=>n[0]),
+    datasets:[{data:nats.map(n=>n[1]),backgroundColor:nats.map(n=>NATURE_COL[n[0]]||UC.gray),borderColor:'white',borderWidth:1,borderRadius:4}]
+  },options:{...base,plugins:{...base.plugins,legend:{display:false}},scales:{x:{grid:{display:false},ticks:{maxRotation:30,font:{size:10}}},y:{grid:{color:'#DDE8F0'}}}}});
+
+  // Grant donut
+  const gc={};
+  fd.filter(r=>r.grant&&r.grant!=='Non renseigné').forEach(r=>{gc[r.grant]=(gc[r.grant]||0)+1;});
+  mkC('ch-grant',{type:'doughnut',data:{
+    labels:Object.keys(gc),
+    datasets:[{data:Object.values(gc),backgroundColor:Object.keys(gc).map(g=>GRANT_COL[g]||UC.gray),borderColor:'white',borderWidth:3}]
+  },options:{...base,cutout:'40%',plugins:{...base.plugins,legend:{position:'bottom',labels:{font:{family:'Arial',size:10},boxWidth:12}}}}});
+
+  // Benef grouped bar
+  const bx={};
+  fd.forEach(r=>{if(!bx[r.type])bx[r.type]={ff:0,hg:0};bx[r.type].ff+=(r.ff||0);bx[r.type].hg+=(r.hg||0);});
+  const bt=Object.keys(bx);
+  mkC('ch-benef',{type:'bar',data:{labels:bt,datasets:[
+    {label:'Femmes/Filles',  data:bt.map(t=>bx[t].ff), backgroundColor:UC.orange,borderRadius:3},
+    {label:'Hommes/Garçons', data:bt.map(t=>bx[t].hg), backgroundColor:UC.navy,  borderRadius:3},
+  ]},options:{...base,scales:{x:{grid:{display:false}},y:{grid:{color:'#DDE8F0'}}}}});
+}
+
+// ═══════════════════════════════════════════
+// CARTE LEAFLET
+// ═══════════════════════════════════════════
+function initMap(){
+  if(map)return;
+  map=L.map('map',{minZoom:6,maxZoom:14}).setView([9.5,2.3],7);
+  layers.osm  =L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'});
+  layers.sat  =L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{attribution:'© ESRI'});
+  layers.topo =L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',{attribution:'© ESRI'});
+  layers.carto=L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{attribution:'© CartoDB'});
+  layers.osm.addTo(map); currentLayer=layers.osm;
+  L.control.scale({position:'bottomleft',imperial:false}).addTo(map);
+  updateMapMarkers();
+}
+function switchLayer(){
+  const v=document.getElementById('map-layer').value;
+  map.removeLayer(currentLayer); currentLayer=layers[v]; currentLayer.addTo(map);
+}
+function updateMapMarkers(){
+  if(!map)return;
+  if(markerGroup)map.removeLayer(markerGroup);
+  const colorBy=document.getElementById('map-color').value;
+  const mode=document.getElementById('map-mode').value;
+  const pts=filteredMap;
+  function getCol(pt){
+    if(colorBy==='type')  return TYPE_COL[pt.type]   ||UC.gray;
+    if(colorBy==='dept')  return DEPT_COL[pt.dept]   ||UC.gray;
+    if(colorBy==='nature')return NATURE_COL[pt.nature]||UC.gray;
+    if(colorBy==='grant') return GRANT_COL[pt.grant]  ||UC.gray;
+    return UC.gray;
+  }
+  function popup(pt){
+    const ico=TYPE_ICO[pt.type]||'❓';
+    const ffS=pt.ff!=null?`<b>${pt.ff.toLocaleString('fr-FR')}</b> F/F`:'';
+    const hgS=pt.hg!=null?` | <b>${pt.hg.toLocaleString('fr-FR')}</b> H/G`:'';
+    const bRow=(pt.ff!=null||pt.hg!=null)?`
+      <tr><td>👤</td><td>${ffS}${hgS}</td></tr>
+      ${pt.tot!=null?`<tr><td>👥</td><td><b>${pt.tot.toLocaleString('fr-FR')}</b> bénéficiaires</td></tr>`:''}`:''
+    const dRow=pt.dp?`<tr><td>📅</td><td>Récep. prov. : ${pt.dp}${pt.dd?' → Déf. : '+pt.dd:''}</td></tr>`:''
+    const cRow=pt.comite?`<tr><td>🏛</td><td>Comité : <b>${pt.comite}</b></td></tr>`:''
+    return `<div class="popup-inner">
+      <div class="popup-hdr">${ico}&nbsp;&nbsp;${pt.type}</div>
+      <table class="popup-table">
+        <tr><td>📍</td><td><b>${pt.village||'N/D'}</b>${pt.arrond?' – '+pt.arrond:''}</td></tr>
+        <tr><td>🏙</td><td>${pt.commune||'N/D'}${pt.dept?' &nbsp;•&nbsp; <b>'+pt.dept+'</b>':''}</td></tr>
+        <tr><td>🏠</td><td>${pt.nature||'N/D'}</td></tr>
+        <tr><td>💰</td><td>${pt.grant||'N/D'}</td></tr>
+        <tr><td>📆</td><td>Année : ${pt.annee||'N/D'}</td></tr>
+        ${bRow}${dRow}${cRow}
+      </table>
+      <div class="popup-note">Position approximative – chef-lieu de commune</div>
+    </div>`;
+  }
+  if(mode==='cluster'){
+    markerGroup=L.markerClusterGroup({iconCreateFunction:function(c){
+      const n=c.getChildCount(),col=n>15?UC.navy:n>5?UC.dblue:UC.green;
+      return L.divIcon({html:`<div style="background:${col};color:white;border-radius:50%;width:38px;height:38px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,.3);">${n}</div>`,iconSize:[38,38],iconAnchor:[19,19]});
+    }});
+  } else { markerGroup=L.featureGroup(); }
+  pts.forEach(pt=>{
+    L.circleMarker([pt.lat,pt.lon],{radius:9,color:'white',weight:2.5,fillColor:getCol(pt),fillOpacity:.92})
+      .bindPopup(popup(pt),{maxWidth:340})
+      .bindTooltip(`${TYPE_ICO[pt.type]||''} ${pt.type} – ${pt.commune}`,{direction:'top',opacity:.9})
+      .addTo(markerGroup);
+  });
+  markerGroup.addTo(map);
+  // Légende
+  const palMap={type:TYPE_COL,dept:DEPT_COL,nature:NATURE_COL,grant:GRANT_COL};
+  const lblMap={type:'Type',dept:'Département',nature:'Nature',grant:'Financement'};
+  const pal=palMap[colorBy];
+  let leg=`<b style="font-size:12px;">${lblMap[colorBy]}</b><br>`;
+  Object.entries(pal).forEach(([k,v])=>{leg+=`<div style="display:flex;align-items:center;gap:5px;margin-top:4px;"><span style="width:12px;height:12px;border-radius:50%;background:${v};display:inline-block;border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,.3);flex-shrink:0;"></span><span style="font-size:11px;">${k}</span></div>`;} );
+  if(map._leg)map.removeControl(map._leg);
+  map._leg=L.control({position:'bottomright'});
+  map._leg.onAdd=function(){const d=L.DomUtil.create('div');d.style.cssText='background:white;padding:10px 14px;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,.2);font-family:Arial;';d.innerHTML=leg;return d;};
+  map._leg.addTo(map);
+  document.getElementById('map-info-txt').textContent=`${pts.length} sites affichés sur ${filteredData.length} filtrés`;
+}
+
+// ═══════════════════════════════════════════
+// ANALYSES CHARTS
+// ═══════════════════════════════════════════
+function initAnalysisCharts(){
+  const fd=filteredData;
+  const depts2=[...new Set(fd.map(r=>r.dept).filter(Boolean))];
+  const types2=['Latrine','PEA','FPMH'];
+  mkC('ch-typedept',{type:'bar',data:{labels:depts2,datasets:types2.map(t=>{
+    return{label:t,data:depts2.map(d=>fd.filter(r=>r.type===t&&r.dept===d).length),backgroundColor:TYPE_COL[t]||UC.gray,borderRadius:3};
+  })},options:{...base,scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,grid:{color:'#DDE8F0'}}}}});
+  const oui=fd.filter(r=>r.comite==='Oui').length,non=fd.filter(r=>r.comite==='Non').length,nd=fd.length-oui-non;
+  mkC('ch-comite',{type:'doughnut',data:{labels:['Oui ✅','Non ❌','Non renseigné'],datasets:[{data:[oui,non,nd],backgroundColor:[UC.green,UC.red,'#CCCCCC'],borderColor:'white',borderWidth:3}]},options:{...base,cutout:'42%',plugins:{...base.plugins,legend:{position:'bottom'}}}});
+  const db={};
+  fd.filter(r=>r.dept).forEach(r=>{if(!db[r.dept])db[r.dept]={ff:0,hg:0};db[r.dept].ff+=(r.ff||0);db[r.dept].hg+=(r.hg||0);});
+  const dbD=Object.keys(db);
+  mkC('ch-benefdept',{type:'bar',data:{labels:dbD,datasets:[
+    {label:'Femmes/Filles',  data:dbD.map(d=>db[d].ff),backgroundColor:UC.orange,borderRadius:3},
+    {label:'Hommes/Garçons', data:dbD.map(d=>db[d].hg),backgroundColor:UC.navy, borderRadius:3},
+  ]},options:{...base,scales:{x:{stacked:true,grid:{display:false}},y:{stacked:true,grid:{color:'#DDE8F0'}}}}});
+  const ratios=dbD.map(d=>{const t=db[d].ff+db[d].hg;return t>0?Math.round(db[d].ff/t*100):0;});
+  mkC('ch-ratio',{type:'bar',data:{labels:dbD,datasets:[{label:'% Femmes/Filles',data:ratios,backgroundColor:UC.orange,borderRadius:4}]},options:{...base,plugins:{...base.plugins,legend:{display:false}},scales:{x:{grid:{display:false}},y:{min:0,max:70,ticks:{callback:v=>v+'%'},grid:{color:'#DDE8F0'}}}}});
+  const hmF=[...new Set(fd.map(r=>r.nature).filter(Boolean))];
+  const hmT=['Latrine','PEA','FPMH'];
+  mkC('ch-heatmap',{type:'bar',data:{labels:hmT,datasets:hmF.map(nat=>{
+    return{label:nat,data:hmT.map(t=>fd.filter(r=>r.type===t&&r.nature===nat).length),backgroundColor:NATURE_COL[nat]||UC.gray,borderRadius:3};
+  })},options:{...base,scales:{x:{grid:{display:false}},y:{grid:{color:'#DDE8F0'}}}}});
+}
+
+// ═══════════════════════════════════════════
+// TABLE
+// ═══════════════════════════════════════════
+let currentTableData=[];
+function renderTable(){
+  const q=document.getElementById('search-input').value.toLowerCase();
+  const fc=document.getElementById('ft-cat').value;
+  const ft=document.getElementById('ft-type').value;
+  const fd2=document.getElementById('ft-dept').value;
+  let rows=filteredData.filter(r=>{
+    if(fc&&r.cat!==fc)return false;
+    if(ft&&r.type!==ft)return false;
+    if(fd2&&r.dept!==fd2)return false;
+    if(q){const h=[r.commune,r.village,r.arrond,r.type,r.nature,r.grant,r.dept].join(' ').toLowerCase();if(!h.includes(q))return false;}
+    return true;
+  });
+  if(sortCol>=0){
+    const keys=['id','type','cat','dept','commune','arrond','village','nature','grant','comite','ff','hg','tot','dp','dd','annee','lat','lon'];
+    const key=keys[sortCol];
+    rows.sort((a,b)=>{const va=a[key]??'',vb=b[key]??'';return typeof va==='number'?(va-vb)*sortDir:String(va).localeCompare(String(vb),'fr')*sortDir;});
+  }
+  currentTableData=rows;
+  document.getElementById('tbl-count').textContent=`${rows.length} enregistrements`;
+  const maxB=Math.max(...D.table_rows.map(r=>r.tot||0),1);
+  document.getElementById('table-body').innerHTML=rows.map(r=>{
+    const tc=r.type==='Latrine'?'badge-lat':r.type==='PEA'?'badge-pea':'badge-fpmh';
+    const cc=r.cat==='Eau potable'?'badge-eau':'badge-ass';
+    const comS=r.comite==='Oui'?'color:#80BD41;font-weight:700':r.comite==='Non'?'color:#E2231A;font-weight:700':'';
+    const pct=r.tot?Math.round(r.tot/maxB*100):0;
+    const bCell=r.tot?`${r.tot.toLocaleString('fr-FR')} <span class="bar-wrap"><span class="bar-fill" style="width:${pct}%"></span></span>`:'–';
+    return `<tr>
+      <td>${r.id}</td>
+      <td><span class="badge ${tc}">${r.type}</span></td>
+      <td><span class="badge ${cc}">${r.cat}</span></td>
+      <td>${r.dept||'–'}</td><td>${r.commune||'–'}</td><td>${r.arrond||'–'}</td><td>${r.village||'–'}</td>
+      <td>${r.nature||'–'}</td><td>${r.grant||'–'}</td>
+      <td style="${comS}">${r.comite||'–'}</td>
+      <td style="text-align:right">${r.ff!=null?r.ff.toLocaleString('fr-FR'):'–'}</td>
+      <td style="text-align:right">${r.hg!=null?r.hg.toLocaleString('fr-FR'):'–'}</td>
+      <td style="text-align:right">${bCell}</td>
+      <td>${r.dp||'–'}</td><td>${r.dd||'–'}</td><td>${r.annee||'–'}</td>
+      <td style="font-size:11px;color:#999">${r.lat||'–'}</td>
+      <td style="font-size:11px;color:#999">${r.lon||'–'}</td>
+    </tr>`;
+  }).join('');
+}
+function sortTable(col){
+  const ths=document.querySelectorAll('table.dt thead th');
+  ths.forEach(th=>th.classList.remove('sort-asc','sort-desc'));
+  if(sortCol===col)sortDir*=-1; else{sortCol=col;sortDir=1;}
+  ths[col].classList.add(sortDir===1?'sort-asc':'sort-desc');
+  renderTable();
+}
+
+// ═══════════════════════════════════════════
+// EXPORT
+// ═══════════════════════════════════════════
+function exportCSV(){
+  const h=['ID','Type','Catégorie','Département','Commune','Arrondissement','Village','Nature du lieu','Financement','Comité gestion','Femmes/Filles','Hommes/Garçons','Total bénéficiaires','Réception prov.','Réception déf.','Année','Latitude','Longitude'];
+  const k=['id','type','cat','dept','commune','arrond','village','nature','grant','comite','ff','hg','tot','dp','dd','annee','lat','lon'];
+  const csv=[h,...currentTableData.map(r=>k.map(c=>r[c]??''))].map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,'+encodeURIComponent('\uFEFF'+csv);
+  a.download='WASH_UNICEF_Benin_'+new Date().toISOString().slice(0,10)+'.csv';a.click();
+}
+function exportExcel(){
+  const h=['ID','Type','Catégorie','Département','Commune','Arrondissement','Village','Nature du lieu','Financement','Comité','F/F','H/G','Total bénéf.','Récep. prov.','Récep. déf.','Année','Lat.','Lon.'];
+  const k=['id','type','cat','dept','commune','arrond','village','nature','grant','comite','ff','hg','tot','dp','dd','annee','lat','lon'];
+  let t=`<table border="1"><tr>${h.map(x=>`<th style="background:#374EA2;color:white">${x}</th>`).join('')}</tr>`;
+  t+=currentTableData.map(r=>`<tr>${k.map(c=>`<td>${r[c]??''}</td>`).join('')}</tr>`).join('');
+  t+='</table>';
+  const b=new Blob([`<html><head><meta charset="utf-8"></head><body>${t}</body></html>`],{type:'application/vnd.ms-excel'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(b);
+  a.download='WASH_UNICEF_Benin_'+new Date().toISOString().slice(0,10)+'.xls';a.click();
+}
+
+// ═══════════════════════════════════════════
+// QUALITÉ
+// ═══════════════════════════════════════════
+function renderQuality(){
+  const c=D.completude;
+  document.getElementById('completude-bars').innerHTML=Object.entries(c).map(([l,p])=>{
+    const col=p>=75?UC.green:p>=50?UC.orange:UC.red;
+    return `<div class="prog-item"><div class="prog-label"><span>${l}</span><span style="color:${col};font-weight:800;">${p}%</span></div><div class="prog-bg"><div class="prog-fill" style="width:${p}%;background:${col};"></div></div></div>`;
+  }).join('');
+  const n=D.total;
+  const crit=Math.round((100-D.completude['Coordonnées GPS'])/100*n)+Math.round((100-D.completude['Département'])/100*n);
+  const moyen=Math.round((100-D.completude['Grant/Financement'])/100*n)+Math.round((100-D.completude["Femmes/Filles"])/100*n);
+  const bon=Math.max(n*3-crit-moyen,0);
+  mkC('ch-qualite',{type:'doughnut',data:{labels:['Critique','À améliorer','Satisfaisant'],datasets:[{data:[crit,moyen,bon],backgroundColor:[UC.red,UC.orange,UC.green],borderColor:'white',borderWidth:3}]},options:{...base,cutout:'38%',plugins:{...base.plugins,legend:{position:'bottom'}}}});
+}
+
+// ═══════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════
+document.addEventListener('DOMContentLoaded',()=>{
+  updateKPIs();
+  updateOverviewCharts();
+  renderTable();
+  renderQuality();
+  setTimeout(initMap,150);
+});
+</script>
+</body>
+</html>
